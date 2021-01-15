@@ -7,11 +7,13 @@ public class TestKDTree {
     float atomicSize;
     int dim;
     float tolerance = 0.0001f;
+    int funCounter;
 
     public TestKDTree(int dimension, float maxSize, float atomicSize){
         this.dim = dimension;
         this.maxSpaceSize = maxSize;
         this.atomicSize = atomicSize;
+        //System.out.println("Atomic size: " + atomicSize);
         this.root = null;
     }
 
@@ -33,6 +35,7 @@ public class TestKDTree {
     {
         //Use modulo to iterate through each dimension
         int currDim = curNode.level%(this.dim);
+        this.funCounter += 1;
 
         //If all dimensions have been traversed, or it is the first partition, calculate the hypercube's side
         if(currDim == 0){
@@ -63,7 +66,7 @@ public class TestKDTree {
         //The + 1 is necessary because the maxVal is half the actual size of the original hypercube
         int currentIteration = (thisNode.level / this.dim) + 1;
         //For each iteration, the coordinates will move by half of the value from the previous iteration
-        float subtractValue = (float) Math.abs(maxVal/Math.pow(2, currentIteration));
+        float shiftValue = (float) Math.abs(maxVal/Math.pow(2, currentIteration));
 
         if(currCoords[currDim] == 0f){
             float[] newLeftCoords = currCoords.clone();
@@ -75,10 +78,10 @@ public class TestKDTree {
         }else{
             float[] newLeftCoords = currCoords.clone();
             float[] newRightCoords = currCoords.clone();
-            System.out.println("Current value: " + currCoords[currDim]);
-            System.out.println("Value to subtract from current value: " + Math.abs(currCoords[currDim]/2));
-            float newLeftXAxis = currCoords[currDim] - subtractValue;
-            float newRightXAxis = currCoords[currDim] + subtractValue;
+            //System.out.println("Current value: " + currCoords[currDim]);
+            //System.out.println("Value to subtract from current value: " + Math.abs(currCoords[currDim]/2));
+            float newLeftXAxis = currCoords[currDim] - shiftValue;
+            float newRightXAxis = currCoords[currDim] + shiftValue;
             newLeftCoords[currDim] = newLeftXAxis;
             newRightCoords[currDim] = newRightXAxis;
             return new Object[]{newLeftCoords, newRightCoords};
