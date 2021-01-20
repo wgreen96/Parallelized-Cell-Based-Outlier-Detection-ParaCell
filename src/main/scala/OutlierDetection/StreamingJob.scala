@@ -72,6 +72,7 @@ object StreamingJob {
     //It returns the partitioning key as well as the data point
     //Oddly, it creates a duplicate of each one
 //    val partitioned_data = data.flatMap(record => grid_partitioning(partitions, record, common_R, dataset))
+
     val partitioned_data =
       data.flatMap(record => HypercubeGeneration.createPartitions(partitions, record))
     partitioned_data.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
