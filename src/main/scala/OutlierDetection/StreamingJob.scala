@@ -18,6 +18,7 @@
 
 package OutlierDetection
 
+import OutlierDetection.GridPROUD.grid_partitioning
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStreamUtils
@@ -43,7 +44,11 @@ object StreamingJob {
     val delimiter = ","
     val line_delimiter = "&"
     val partitions = 1
-    val myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt"
+    val myInput = "C:/Users/wgree//Git/PROUD/data/STK/input_20k.txt"
+    val dataset = "STK"
+    val common_R = 0.35
+    //val HypercubeStorage
+
     // set up the streaming execution environment
     //val env = StreamExecutionEnvironment.getExecutionEnvironment
     val env = StreamExecutionEnvironment.createLocalEnvironment()
@@ -64,16 +69,25 @@ object StreamingJob {
         }
     }
 
-    val myOutput: Iterator[Data_basis] = DataStreamUtils.collect(data.javaStream).asScala
-    myOutput.foreach{
-      println
-    }
-
-    data.writeAsText("/home/green/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
-    //data.print()
+    //It returns the partitioning key as well as the data point
+    //Oddly, it creates a duplicate of each one
+//    val partitioned_data = data.flatMap(record => grid_partitioning(partitions, record, common_R, dataset))
+    val partitioned_data =
+      data.flatMap(record => HypercubeGeneration.createPartitions(partitions, record))
+    partitioned_data.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
 
 
     // execute program
     env.execute("Flink Streaming Scala API Skeleton")
+
   }
 }
+
+//works, can be used later for debugging
+//    val myOutput: Iterator[Data_basis] = DataStreamUtils.collect(data.javaStream).asScala
+//    myOutput.foreach{
+//      println
+//    }
+
+//works, can be used later for debugging
+//    data.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)

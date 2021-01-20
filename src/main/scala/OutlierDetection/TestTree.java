@@ -1,5 +1,7 @@
 package OutlierDetection;
 
+import java.util.ArrayList;
+
 public class TestTree {
 
     public static void main(String args[])
@@ -49,7 +51,10 @@ public class TestTree {
         currTree.createPartitions(currTree.root);
 
         System.out.println("Hello World");
-        System.out.println(currTree.funCounter);
+        //System.out.println(currTree.funCounter);
+        ArrayList<TestKDNode> storage = currTree.collectLeafNodes(currTree.root);
+        System.out.println(currTree.sameCounter);
+        System.out.println(storage.size());
     }
 
 

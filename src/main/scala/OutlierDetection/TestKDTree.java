@@ -1,13 +1,20 @@
 package OutlierDetection;
 
+import java.util.ArrayList;
+
 public class TestKDTree {
 
     public TestKDNode root;
     float maxSpaceSize;
     float atomicSize;
     int dim;
-    float tolerance = 0.0001f;
+    float tolerance = 0.001f;
     int funCounter;
+    ArrayList<TestKDNode> childrenArray = new ArrayList<TestKDNode>();
+    ArrayList<TestKDNode> sameArray = new ArrayList<TestKDNode>();
+    float[] testder = new float[3];
+    int sameCounter;
+
 
     public TestKDTree(int dimension, float maxSize, float atomicSize){
         this.dim = dimension;
@@ -35,7 +42,7 @@ public class TestKDTree {
     {
         //Use modulo to iterate through each dimension
         int currDim = curNode.level%(this.dim);
-        this.funCounter += 1;
+        //this.funCounter += 1;
 
         //If all dimensions have been traversed, or it is the first partition, calculate the hypercube's side
         if(currDim == 0){
@@ -44,10 +51,12 @@ public class TestKDTree {
             curNode.difference = Math.abs(curNode.sideLength - atomicSize);
         }else{
             curNode.difference = tolerance + 1;
+            curNode.sideLength = -1;
         }
 
         //We are comparing floats, so a tolerance ensures tiny deviations shouldn't break everything
-        if(tolerance < curNode.difference){
+        //if(tolerance < curNode.difference){
+        if(curNode.sideLength != atomicSize){
             //Increment the level so the recursive call uses the next dimension
             int nextLevel = curNode.level + 1;
             //Calculate formula for dimensions
@@ -56,6 +65,12 @@ public class TestKDTree {
             createPartitions(curNode.left);
             curNode.right = new TestKDNode(curNode, (float[]) storedCoords[1], nextLevel);
             createPartitions(curNode.right);
+        }
+        else{
+            //System.out.println(curNode.level);
+            //System.out.println(curNode.toString());
+            this.funCounter += 1;
+            //System.out.println(curNode.difference);
         }
     }
 
@@ -101,5 +116,35 @@ public class TestKDTree {
                 System.exit(0);
             }
         }
+    }
+
+    public ArrayList<TestKDNode> collectLeafNodes(TestKDNode currNode){
+
+        testder[0] = (float) 184.03041;
+        testder[1] = (float) 184.03041;
+        testder[2] = (float) 184.03041;
+
+        int quickCount = 0;
+        for(int i = 0; i < 3; i++){
+            //System.out.println(currNode.currAxisValues[i] - testder[i]);
+            if(tolerance > Math.abs(currNode.currAxisValues[i] - testder[i])){
+                quickCount++;
+            }
+            if(quickCount == 3){
+                sameCounter += 1;
+                sameArray.add(currNode);
+            }
+        }
+
+        if(currNode.left != null){
+            collectLeafNodes(currNode.left);
+        }
+        if(currNode.right != null){
+            collectLeafNodes(currNode.right);
+        }
+        if(currNode.right == null && currNode.left == null){
+            childrenArray.add(currNode);
+        }
+        return childrenArray;
     }
 }
