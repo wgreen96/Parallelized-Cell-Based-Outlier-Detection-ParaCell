@@ -47,7 +47,6 @@ object StreamingJob {
     val myInput = "C:/Users/wgree//Git/PROUD/data/STK/input_20k.txt"
     val dataset = "STK"
     val common_R = 0.35
-    //val HypercubeStorage
 
     // set up the streaming execution environment
     //val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -56,7 +55,7 @@ object StreamingJob {
     env.setParallelism(partitions)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-    val data: DataStream[Data_basis] = {
+    val data: DataStream[Data_hypercube] = {
       println(myInput)
       env
         .readTextFile(myInput)
@@ -65,17 +64,12 @@ object StreamingJob {
           val id = splitLine(0).toInt
           val value = splitLine(1).split(delimiter).map(_.toDouble).to[ListBuffer]
           val timestamp = id.toLong
-          new Data_basis(id, value, timestamp, 0)
+          new Data_hypercube(value, timestamp, 0)
         }
     }
 
-    //It returns the partitioning key as well as the data point
-    //Oddly, it creates a duplicate of each one
-//    val partitioned_data = data.flatMap(record => grid_partitioning(partitions, record, common_R, dataset))
-
-    val partitioned_data =
-      data.flatMap(record => HypercubeGeneration.createPartitions(partitions, record))
-    partitioned_data.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
+    val newData = data.map(record => HypercubeGeneration.createPartitions(partitions, record))
+    newData.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
 
 
     // execute program
@@ -89,6 +83,3 @@ object StreamingJob {
 //    myOutput.foreach{
 //      println
 //    }
-
-//works, can be used later for debugging
-//    data.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)

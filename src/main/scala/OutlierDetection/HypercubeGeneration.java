@@ -1,10 +1,10 @@
 package OutlierDetection;
 
-import scala.collection.mutable.Buffer;
-import scala.collection.mutable.ListBuffer;
 import scala.collection.JavaConversions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HypercubeGeneration {
 
@@ -19,36 +19,69 @@ public class HypercubeGeneration {
 
     }
 
-    //so this works because I took record and returned a single dimension of it
-    public static ListBuffer<Object> createPartition(Data_basis vals){
-        boolean tester = false;
-        ListBuffer<Object> objs = new ListBuffer<>();
-        while(!tester){
-            objs = vals.value();
-            tester = true;
-        }
-        return objs;
-    }
-
-    public static Buffer<Double> createPartitions(int partitions, Data_basis dataPoint){
-        //Create data structure to store hypercube boundary coordinates
-        ArrayList<Double> coordBoundaries = new ArrayList<>();
-        //Get data points coordiates, also need to convert Scala structure to Java alternative
+    public static Data_hypercube createPartitions(int partitions, Data_hypercube dataPoint){
+        //Create data structure to store values that will become HypercubeID
+        ArrayList<Integer> multiplicationValues = new ArrayList<Integer>();
+        //Get data points coordinates, also need to convert Scala structure to Java alternative
         Iterable<Object> javaDataCoords = JavaConversions.asJavaIterable(dataPoint.value());
         //For each coordinate
         for(Object val: javaDataCoords){
             //Find closest multiple of hypercubeSide
             double closestMultiple = (double) val / hypercubeSide;
-            //Use ceiling and floor to get the 2 closest ints
-            double topVal = hypercubeSide * Math.ceil(closestMultiple);
-            coordBoundaries.add(topVal);
-            double bottomVal = hypercubeSide * Math.floor(closestMultiple);
-            coordBoundaries.add(bottomVal);
+            //Store int values to create unique id for Hypercube
+            multiplicationValues.add((int) Math.ceil(closestMultiple));
+            multiplicationValues.add((int) Math.floor(closestMultiple));
         }
-        //Before returning value, go back to Scala data structure
-        Buffer<Double> coordVals = JavaConversions.asScalaBuffer(coordBoundaries);
-        return coordVals;
+        //Set hypercubeID
+        int newHypercubeID = createHypercubeID(multiplicationValues);
+        dataPoint.setHypercubeID(newHypercubeID);
+        dataPoint.setPartitionId(newHypercubeID % partitions);
+        return dataPoint;
     }
 
+    public static int createHypercubeID(ArrayList<Integer> multiplicationVals){
+        //Concatenate int values
+        //So {1,4,6,2,5} creates uniqueID 14625
+        int uniqueID = 0;
+        int arraySize = multiplicationVals.size();
+        for(int currIndex = 0; currIndex < arraySize; currIndex++){
+            uniqueID += Math.pow(10, ((arraySize - 1) - currIndex)) * multiplicationVals.get(currIndex);
+        }
+        return uniqueID;
+    }
 
 }
+//METHOD FOR STORING HYPERCUBEID, PARTITIONID IN HASKMAP, MAY BE USEFUL LATER ON IF CURRENT METHOD IS UNBALANCED
+//Was not used because, at least with 20k data points, it returned even partition results. Could be different with more data
+//    static Map<Integer, Integer> IDMap = new HashMap<Integer, Integer>();
+//    static int partitionCounter = 0;
+
+//If the key already exists
+//        if(IDMap.containsKey(newHypercubeID)){
+//            //Set HypercubeID for data point and get partitionID from HashMap
+//            dataPoint.setHypercubeID(newHypercubeID);
+//            dataPoint.setPartitionId(IDMap.get(newHypercubeID));
+//        }
+//        else{
+//            //Create partition ID
+//            int newPartitionID = partitionCounter % partitions;
+//            partitionCounter++;
+//            //Store hypercubeID and partitionID in HashMap
+//            IDMap.put(newHypercubeID, newPartitionID);
+//            //Set values for data point
+//            dataPoint.setHypercubeID(newHypercubeID);
+//            dataPoint.setPartitionId(newPartitionID);
+//        }
+
+
+//METHOD FOR GETTING A HYPERCUBES BOUNDARY COORDINATES
+//public static Buffer<Double> createPartitions(int partitions, Data_hypercube dataPoint){
+//Create data structure to store hypercube boundary coordinates
+//        ArrayList<Double> coordBoundaries = new ArrayList<>();
+//            //Use ceiling and floor to get the 2 closest ints
+//            double topVal = hypercubeSide * Math.ceil(closestMultiple);
+//            double bottomVal = hypercubeSide * Math.floor(closestMultiple);
+//            coordBoundaries.add(topVal);
+//            coordBoundaries.add(bottomVal);
+//Before returning value, go back to Scala data structure
+//        Buffer<Double> coordVals = JavaConversions.asScalaBuffer(coordBoundaries);
