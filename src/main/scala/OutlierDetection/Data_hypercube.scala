@@ -14,7 +14,7 @@ class Data_hypercube(c_val: ListBuffer[Double], c_arrival: Long, c_flag: Int) ex
   var partitionID: Int = -1
 
 
-  def this(point: Data_basis){
+  def this(point: Data_hypercube){
     this(point.value, point.arrival, point.flag)
   }
 

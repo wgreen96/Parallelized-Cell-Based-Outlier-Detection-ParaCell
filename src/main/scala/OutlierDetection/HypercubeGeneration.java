@@ -32,7 +32,7 @@ public class HypercubeGeneration {
             multiplicationValues.add((int) Math.ceil(closestMultiple));
             multiplicationValues.add((int) Math.floor(closestMultiple));
         }
-        //Set hypercubeID
+        //Set hypercubeID and partitionID
         int newHypercubeID = createHypercubeID(multiplicationValues);
         dataPoint.setHypercubeID(newHypercubeID);
         dataPoint.setPartitionId(newHypercubeID % partitions);

@@ -18,7 +18,6 @@
 
 package OutlierDetection
 
-import OutlierDetection.GridPROUD.grid_partitioning
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStreamUtils
