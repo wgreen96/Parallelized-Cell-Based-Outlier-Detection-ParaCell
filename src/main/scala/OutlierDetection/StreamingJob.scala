@@ -18,13 +18,12 @@
 
 package OutlierDetection
 
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.DataStreamUtils
 import org.apache.flink.streaming.api.scala._
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.{FieldExpression, Table}
 
-import scala.collection.JavaConverters.asScalaIteratorConverter
-import scala.collection.mutable.ListBuffer
+
 
 /**
  * Skeleton for a Flink Streaming Job.
@@ -48,29 +47,62 @@ object StreamingJob {
     val common_R = 0.35
 
     // set up the streaming execution environment
-    //val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val env = StreamExecutionEnvironment.createLocalEnvironment()
-
+    //val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    //val env = StreamExecutionEnvironment.createLocalEnvironment()
+    // set up the table environment for TABLE API
+    val tableEnv = StreamTableEnvironment.create(env)
     env.setParallelism(partitions)
+    //TODO LOOK INTO WHY THIS ID DEPREACTED AND WHAT REPLACED IT
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-    val data: DataStream[Data_hypercube] = {
-      println(myInput)
+
+//    val data: DataStream[ListBuffer[Double], Long] = {
+//      //println(myInput)
+//      env
+//        .readTextFile(myInput)
+//        .map { record =>
+//          val splitLine = record.split(line_delimiter)
+//          val id = splitLine(0).toInt
+//          val value = splitLine(1).split(delimiter).map(_.toDouble).to[ListBuffer]
+//          val timestamp = id.toLong
+//          new Collector(value, timestamp)
+//          //new Data_hypercube(value, timestamp)
+//        }
+//    }
+
+    val data: DataStream[HypercubePoint] = {
+      //println(myInput)
       env
         .readTextFile(myInput)
         .map { record =>
           val splitLine = record.split(line_delimiter)
           val id = splitLine(0).toInt
-          val value = splitLine(1).split(delimiter).map(_.toDouble).to[ListBuffer]
+          val value = splitLine(1).split(delimiter).map(_.toDouble)
           val timestamp = id.toLong
-          new Data_hypercube(value, timestamp, 0)
+          new HypercubePoint(value, timestamp)
         }
     }
 
+
     val newData = data.map(record => HypercubeGeneration.createPartitions(partitions, record))
-    newData.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
 
 
+
+    // convert the DataStream into a Table with default fields "_1", "_2"
+    val table1: Table = tableEnv.fromDataStream(newData)
+    // convert the DataStream into a Table with fields "myLong", "myString"
+    //val table2: Table = tableEnv.fromDataStream(newData, $"value", $"dim", $"arrival", $"flag", $"state", $"hashcode", $"hypID", $"parID")
+    val table2: Table = tableEnv.fromDataStream(newData, $"coords", $"arrival", $"hypID", $"parID")
+    //val result = tableEnv.sqlQuery("select value from " + table2)
+    //newData.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", WriteMode.OVERWRITE)
+    val colNames = table2.getSchema.getFieldNames
+    val colType = table2.getSchema.getFieldDataTypes
+    //table1.printSchema()
+    colNames.foreach { println}
+    colType.foreach { println}
+
+    //result.print()
     // execute program
     env.execute("Flink Streaming Scala API Skeleton")
 

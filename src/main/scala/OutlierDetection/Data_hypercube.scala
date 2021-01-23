@@ -2,20 +2,16 @@ package OutlierDetection
 
 import scala.collection.mutable.ListBuffer
 
-class Data_hypercube(c_val: ListBuffer[Double], c_arrival: Long, c_flag: Int) extends Serializable {
+class Data_hypercube(c_val: ListBuffer[Double], c_arrival: Long) extends Serializable {
 
   val value: ListBuffer[Double] = c_val
-  val dimensions: Int = value.length
   val arrival: Long = c_arrival
-  val flag: Int = c_flag
-  val state: Seq[ListBuffer[Double]] = Seq(value)
-  val hashcode: Int = state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   var hypercubeID: Int = -1
   var partitionID: Int = -1
 
 
   def this(point: Data_hypercube){
-    this(point.value, point.arrival, point.flag)
+    this(point.value, point.arrival)
   }
 
   def setHypercubeID(newHypercubeID: Int): Unit =
@@ -24,8 +20,9 @@ class Data_hypercube(c_val: ListBuffer[Double], c_arrival: Long, c_flag: Int) ex
   def setPartitionId(newPartitionID: Int): Unit =
     partitionID = newPartitionID
 
-override def toString = s"Data_hypercube($value, $arrival, $flag, $hypercubeID, $partitionID)"
-//override def toString = s"Data_hypercube($partitionID)"
+  override def toString = s"Data_hypercube($value, $arrival, $hypercubeID, $partitionID)"
+
+  case class Data_hypercube(value: ListBuffer[Double], arrival: Long, hypercubeID: Int, partitionID: Int)
 }
 
 

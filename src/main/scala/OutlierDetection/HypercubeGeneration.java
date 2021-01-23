@@ -19,24 +19,21 @@ public class HypercubeGeneration {
 
     }
 
-    public static Data_hypercube createPartitions(int partitions, Data_hypercube dataPoint){
+    public static HypercubePoint createPartitions(int partitions, HypercubePoint dataPoint){
         //Create data structure to store values that will become HypercubeID
         ArrayList<Integer> multiplicationValues = new ArrayList<Integer>();
-        //Get data points coordinates, also need to convert Scala structure to Java alternative
-        Iterable<Object> javaDataCoords = JavaConversions.asJavaIterable(dataPoint.value());
         //For each coordinate
-        for(Object val: javaDataCoords){
+        for(Double val : dataPoint.coords) {
             //Find closest multiple of hypercubeSide
-            double closestMultiple = (double) val / hypercubeSide;
+            double closestMultiple = val / hypercubeSide;
             //Store int values to create unique id for Hypercube
             multiplicationValues.add((int) Math.ceil(closestMultiple));
             multiplicationValues.add((int) Math.floor(closestMultiple));
         }
         //Set hypercubeID and partitionID
         int newHypercubeID = createHypercubeID(multiplicationValues);
-        dataPoint.setHypercubeID(newHypercubeID);
-        dataPoint.setPartitionId(newHypercubeID % partitions);
-        return dataPoint;
+        int newPartitionID = newHypercubeID % partitions;
+        return new HypercubePoint(dataPoint.coords, dataPoint.arrival, newHypercubeID, newPartitionID);
     }
 
     public static int createHypercubeID(ArrayList<Integer> multiplicationVals){
