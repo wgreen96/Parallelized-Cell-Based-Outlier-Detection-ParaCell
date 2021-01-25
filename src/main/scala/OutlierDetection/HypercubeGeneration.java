@@ -1,27 +1,24 @@
 package OutlierDetection;
 
-import scala.collection.JavaConversions;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 public class HypercubeGeneration {
 
-    //Hardcoded values, will need to be changed after this is finished
-    static double radius = 5;
-    static double diagonal = radius/2;
-    static double dimensions = 3;
-    static double hypercubeSide = diagonal/Math.sqrt(dimensions);
+    static double dimensions;
+    static double radius;
+    static double diagonal;
+    static double hypercubeSide;
+    static int partitions;
 
 
     public void HypercubeGeneration(){
 
     }
 
-    public static HypercubePoint createPartitions(int partitions, HypercubePoint dataPoint){
+    public static HypercubePoint createPartitions(HypercubePoint dataPoint){
         //Create data structure to store values that will become HypercubeID
-        ArrayList<Integer> multiplicationValues = new ArrayList<Integer>();
+        ArrayList<Integer> multiplicationValues = new ArrayList<>();
         //For each coordinate
         for(Double val : dataPoint.coords) {
             //Find closest multiple of hypercubeSide

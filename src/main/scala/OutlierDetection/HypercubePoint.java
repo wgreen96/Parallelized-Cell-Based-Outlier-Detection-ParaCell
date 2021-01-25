@@ -57,5 +57,20 @@ public class HypercubePoint implements Serializable {
         this.partitionID = partitionID;
     }
 
+    public static int getKey(HypercubePoint point){
+        return point.partitionID;
+    }
+
+    public String coordsToString(){
+        String coordString = "";
+        for(double coorVals : this.coords){
+            coordString += Double.toString(coorVals) + ", ";
+        }
+        return coordString;
+    }
+
+    public String toString() {
+        return "Coords: '" + this.coordsToString() + "', Arrival: '" + this.arrival + "', HypercubeID: '" + this.hypercubeID + "'" + "', PartitionID: '" + this.partitionID + "'";
+    }
 
 }
