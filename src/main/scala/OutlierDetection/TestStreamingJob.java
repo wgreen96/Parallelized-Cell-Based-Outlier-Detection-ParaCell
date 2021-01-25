@@ -2,6 +2,7 @@ package OutlierDetection;
 
 import com.typesafe.sslconfig.ssl.ExpressionSymbol;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -13,7 +14,6 @@ import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Over;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.table.descriptors.Schema;
@@ -21,6 +21,7 @@ import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
+import java.nio.file.FileSystem;
 import java.util.*;
 
 import static org.apache.flink.table.api.Expressions.*;
@@ -29,13 +30,14 @@ public class TestStreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "C:/Users/wgree//Git/PROUD/data/STK/input_20k.txt";
+        String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/STK/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
         double radius = 5;
         double dimensions = 3;
-        int partitions = 2;
+        int partitions = 3;
         double common_R = 0.35;
         long windowSize = 10000;
         long slideSize = 500;
@@ -43,7 +45,7 @@ public class TestStreamingJob {
 
         //Generate environment for Datastream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(partitions);
+        //env.setParallelism(partitions);
         StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
 
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
@@ -71,26 +73,34 @@ public class TestStreamingJob {
         //Generate HypercubeID and PartitionID for each data object in the stream
         DataStream<HypercubePoint> newData =
                 dataStream
-                        .map(HypercubeGeneration::createPartitions);
+                        .map(HypercubeGeneration::createPartitions)
+                        .setParallelism(1);
 
         //Assign watermark and timestamp
         newData.assignTimestampsAndWatermarks(WatermarkStrategy.forMonotonousTimestamps());
 
-        //convert stream into table, .rowtime() converts arrival values in arrival to timestamp values
-        Table dataTable = tblEnv.fromDataStream(newData, $("coords"), $("arrival").rowtime(), $("hypercubeID"), $("partitionID"));
+//        //Partition the data by partitionID
+//        DataStream<Iterable<Map.Entry<Integer, Integer>>> cellSummaries =
+//                newData
+//                        .keyBy(HypercubePoint::getKey)
+//                        .process(new CellSummaryCreation())
+//                        .setParallelism(partitions);
 
         //Partition the data by partitionID
-        //Table testTable =
-        newData
-                .keyBy(HypercubePoint::getKey)
-                .window(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                .allowedLateness(Time.milliseconds(slideSize))
-                .process(new CellSummaryCreation());
+        DataStream<Tuple2<Integer, Integer>> cellSummaries =
+                newData
+                        .keyBy(HypercubePoint::getKey)
+                        .process(new CellSummaryCreation())
+                        .setParallelism(partitions);
+
+        cellSummaries.print();
 
 
 
         env.execute("Java Streaming Job");
     }
+
+
 
 }
 
@@ -133,3 +143,14 @@ public class TestStreamingJob {
 //                .select(
 //                        $("b").avg().over($("w"))
 //                );
+
+//Partition the data by partitionID
+//        //Table testTable =
+//        newData
+//                .keyBy(HypercubePoint::getKey)
+//                .window(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+//                .allowedLateness(Time.milliseconds(slideSize))
+//                .process(new CellSummaryCreation());
+
+//convert stream into table, .rowtime() converts arrival values in arrival to timestamp values
+//        Table dataTable = tblEnv.fromDataStream(newData, $("coords"), $("arrival").rowtime(), $("hypercubeID"), $("partitionID"));
