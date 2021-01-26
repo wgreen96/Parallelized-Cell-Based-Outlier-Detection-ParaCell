@@ -3,6 +3,7 @@ package OutlierDetection;
 import com.typesafe.sslconfig.ssl.ExpressionSymbol;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -30,22 +31,22 @@ public class TestStreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/STK/input_20k.txt";
+        //String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
         double radius = 5;
         double dimensions = 3;
         int partitions = 3;
-        double common_R = 0.35;
-        long windowSize = 10000;
-        long slideSize = 500;
-        double kNeighs = 50;
+//        double common_R = 0.35;
+//        long windowSize = 10000;
+//        long slideSize = 500;
+//        double kNeighs = 50;
 
         //Generate environment for Datastream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        //env.setParallelism(partitions);
+        env.setParallelism(partitions);
         StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
 
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
@@ -74,28 +75,18 @@ public class TestStreamingJob {
         DataStream<HypercubePoint> newData =
                 dataStream
                         .map(HypercubeGeneration::createPartitions)
-                        .setParallelism(1);
-
-        //Assign watermark and timestamp
-        newData.assignTimestampsAndWatermarks(WatermarkStrategy.forMonotonousTimestamps());
-
-//        //Partition the data by partitionID
-//        DataStream<Iterable<Map.Entry<Integer, Integer>>> cellSummaries =
-//                newData
-//                        .keyBy(HypercubePoint::getKey)
-//                        .process(new CellSummaryCreation())
-//                        .setParallelism(partitions);
+                        .assignTimestampsAndWatermarks(WatermarkStrategy.forMonotonousTimestamps());
 
         //Partition the data by partitionID
-        DataStream<Tuple2<Integer, Integer>> cellSummaries =
+        DataStream<Tuple3<Double, Integer, Long>> cellSummaries =
                 newData
                         .keyBy(HypercubePoint::getKey)
                         .process(new CellSummaryCreation())
                         .setParallelism(partitions);
 
-        cellSummaries.print();
-
-
+        cellSummaries
+                .print()
+                .setParallelism(1);
 
         env.execute("Java Streaming Job");
     }
@@ -154,3 +145,10 @@ public class TestStreamingJob {
 
 //convert stream into table, .rowtime() converts arrival values in arrival to timestamp values
 //        Table dataTable = tblEnv.fromDataStream(newData, $("coords"), $("arrival").rowtime(), $("hypercubeID"), $("partitionID"));
+
+//        //Partition the data by partitionID
+//        DataStream<Iterable<Map.Entry<Integer, Integer>>> cellSummaries =
+//                newData
+//                        .keyBy(HypercubePoint::getKey)
+//                        .process(new CellSummaryCreation())
+//                        .setParallelism(partitions);

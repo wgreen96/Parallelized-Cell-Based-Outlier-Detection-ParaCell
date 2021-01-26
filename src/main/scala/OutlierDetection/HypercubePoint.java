@@ -6,7 +6,7 @@ public class HypercubePoint implements Serializable {
 
     public double[] coords;
     public long arrival;
-    public int hypercubeID;
+    public double hypercubeID;
     public int partitionID;
 
     public HypercubePoint(){
@@ -18,7 +18,7 @@ public class HypercubePoint implements Serializable {
         this.arrival = timeOfArrival;
     }
 
-    public HypercubePoint(double[] vals, long timeOfArrival, int hID, int pID){
+    public HypercubePoint(double[] vals, long timeOfArrival, double hID, int pID){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
@@ -41,11 +41,11 @@ public class HypercubePoint implements Serializable {
         this.arrival = arrival;
     }
 
-    public int getHypercubeID() {
+    public double getHypercubeID() {
         return hypercubeID;
     }
 
-    public void setHypercubeID(int hypercubeID) {
+    public void setHypercubeID(double hypercubeID) {
         this.hypercubeID = hypercubeID;
     }
 

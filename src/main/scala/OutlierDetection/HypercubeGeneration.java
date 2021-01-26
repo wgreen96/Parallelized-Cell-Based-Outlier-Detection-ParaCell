@@ -28,21 +28,29 @@ public class HypercubeGeneration {
             multiplicationValues.add((int) Math.floor(closestMultiple));
         }
         //Set hypercubeID and partitionID
-        int newHypercubeID = createHypercubeID(multiplicationValues);
-        int newPartitionID = newHypercubeID % partitions;
+        double newHypercubeID = createHypercubeID(multiplicationValues);
+        int newPartitionID = (int) (Math.abs(newHypercubeID) % partitions);
         return new HypercubePoint(dataPoint.coords, dataPoint.arrival, newHypercubeID, newPartitionID);
     }
 
-    public static int createHypercubeID(ArrayList<Integer> multiplicationVals){
+    public static double createHypercubeID(ArrayList<Integer> multiplicationVals){
         //Concatenate int values
-        //So {1,4,6,2,5} creates uniqueID 14625
-        int uniqueID = 0;
-        int arraySize = multiplicationVals.size();
-        for(int currIndex = 0; currIndex < arraySize; currIndex++){
-            uniqueID += Math.pow(10, ((arraySize - 1) - currIndex)) * multiplicationVals.get(currIndex);
+        //So {1,4,63,2,5} creates uniqueID 146325
+        boolean negative = false;
+        String uniqueID = "";
+        for(int currIndex : multiplicationVals){
+            if(currIndex < 0){
+                negative = true;
+            }
+            uniqueID += Integer.toString(Math.abs(currIndex));
         }
-        return uniqueID;
+        if(negative){
+            return Double.parseDouble(uniqueID) * -1;
+        }else{
+            return Double.parseDouble(uniqueID);
+        }
     }
+
 
 }
 //METHOD FOR STORING HYPERCUBEID, PARTITIONID IN HASKMAP, MAY BE USEFUL LATER ON IF CURRENT METHOD IS UNBALANCED
