@@ -4,6 +4,7 @@ import com.typesafe.sslconfig.ssl.ExpressionSymbol;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,8 +32,8 @@ public class TestStreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        //String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
@@ -56,10 +57,6 @@ public class TestStreamingJob {
         HypercubeGeneration.hypercubeSide = HypercubeGeneration.diagonal / Math.sqrt(dimensions);
         HypercubeGeneration.partitions = partitions;
 
-        //Send stream and table environment to CellSummaryCreation
-        CellSummaryCreation.env = env;
-        CellSummaryCreation.tblEnv = tblEnv;
-
         //Create DataStream using a source
         DataStream<HypercubePoint> dataStream = env
                 .readTextFile(myInput)
@@ -67,18 +64,18 @@ public class TestStreamingJob {
                     String[] cells = line.split(line_delimiter);
                     String[] stringCoords = cells[1].split(delimiter);
                     double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
-                    long timestamp = Long.parseLong(cells[0]);
-                    return new HypercubePoint(coords, timestamp);
+                    long timeStamp = Long.parseLong(cells[0]);
+                    return new HypercubePoint(coords, timeStamp);
                 });
 
         //Generate HypercubeID and PartitionID for each data object in the stream
         DataStream<HypercubePoint> newData =
                 dataStream
-                        .map(HypercubeGeneration::createPartitions)
-                        .assignTimestampsAndWatermarks(WatermarkStrategy.forMonotonousTimestamps());
+                        .map(HypercubeGeneration::createPartitions);
+
 
         //Partition the data by partitionID
-        DataStream<Tuple3<Double, Integer, Long>> cellSummaries =
+        DataStream<Tuple2<Double, Integer>> cellSummaries =
                 newData
                         .keyBy(HypercubePoint::getKey)
                         .process(new CellSummaryCreation())
@@ -152,3 +149,6 @@ public class TestStreamingJob {
 //                        .keyBy(HypercubePoint::getKey)
 //                        .process(new CellSummaryCreation())
 //                        .setParallelism(partitions);
+
+//                .assignTimestampsAndWatermarks(WatermarkStrategy.<HypercubePoint>forMonotonousTimestamps()
+//                                                                .withTimestampAssigner((HypercubePoint, timestamp) -> HypercubePoint.getArrival()));
