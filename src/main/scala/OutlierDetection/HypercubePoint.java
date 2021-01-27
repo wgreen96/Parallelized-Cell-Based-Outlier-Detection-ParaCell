@@ -34,6 +34,7 @@ public class HypercubePoint implements Serializable {
     }
 
     public long getArrival() {
+        System.out.println(this.arrival);
         return arrival;
     }
 
