@@ -32,8 +32,8 @@ public class TestStreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        //String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
@@ -45,17 +45,20 @@ public class TestStreamingJob {
 //        long slideSize = 500;
 //        double kNeighs = 50;
 
-        //Generate environment for Datastream and Table API
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(partitions);
-        StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
-
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
         HypercubeGeneration.dimensions = dimensions;
         HypercubeGeneration.radius = radius;
         HypercubeGeneration.diagonal = radius / 2;
         HypercubeGeneration.hypercubeSide = HypercubeGeneration.diagonal / Math.sqrt(dimensions);
         HypercubeGeneration.partitions = partitions;
+
+        //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
+        CellSummaryCreation.lifeThreshold = 100;
+
+        //Generate environment for DataStream and Table API
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(partitions);
+        StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
 
         //Create DataStream using a source
         DataStream<HypercubePoint> dataStream = env

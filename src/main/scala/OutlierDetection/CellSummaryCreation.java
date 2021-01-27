@@ -18,7 +18,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
     private MapState<Double, LinkedList> timeState;
 
     //The amount of time after processing that a data point can live. Is measured in milliseconds
-    static long lifeThreshold = 100;
+    static long lifeThreshold;
 
     @Override
     public void open(Configuration parameters) throws Exception {
@@ -79,22 +79,6 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         collector.collect(stateOfHypercube);
 
     }
-
-
-//    @Override
-//    public void onTimer(
-//            long timestamp,
-//            OnTimerContext ctx,
-//            Collector<Tuple2<Integer, Integer>> out) throws Exception {
-//
-//        // retrieve the current count
-//        Tuple2<Integer, Integer> current = state.entries();
-//
-//        // emit the state
-//        out.collect(current);
-//
-//    }
-
 }
 
 

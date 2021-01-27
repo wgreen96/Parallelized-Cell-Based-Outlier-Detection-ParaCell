@@ -7,6 +7,7 @@ public class HypercubePoint implements Serializable {
     public double[] coords;
     public long arrival;
     public double hypercubeID;
+    public double hyperoctantID;
     public int partitionID;
 
     public HypercubePoint(){
@@ -18,10 +19,11 @@ public class HypercubePoint implements Serializable {
         this.arrival = timeOfArrival;
     }
 
-    public HypercubePoint(double[] vals, long timeOfArrival, double hID, int pID){
+    public HypercubePoint(double[] vals, long timeOfArrival, double hID, double octID, int pID){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
+        this.hyperoctantID = octID;
         this.partitionID = pID;
     }
 
@@ -50,6 +52,14 @@ public class HypercubePoint implements Serializable {
         this.hypercubeID = hypercubeID;
     }
 
+    public double getHyperoctantID() {
+        return hyperoctantID;
+    }
+
+    public void setHyperoctantID(double hyperoctantID) {
+        this.hyperoctantID = hyperoctantID;
+    }
+
     public int getPartitionID() {
         return partitionID;
     }
@@ -71,7 +81,7 @@ public class HypercubePoint implements Serializable {
     }
 
     public String toString() {
-        return "Coords: '" + this.coordsToString() + "', Arrival: '" + this.arrival + "', HypercubeID: '" + this.hypercubeID + "'" + "', PartitionID: '" + this.partitionID + "'";
+        return "Coords: '" + this.coordsToString() + "', Arrival: '" + this.arrival + "', HypercubeID: '" + this.hypercubeID + "'" + "', HyperoctantID: '" + this.hyperoctantID + "'" + "', PartitionID: '" + this.partitionID + "'";
     }
 
 }

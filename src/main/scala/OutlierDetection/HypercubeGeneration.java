@@ -1,6 +1,7 @@
 package OutlierDetection;
 
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class HypercubeGeneration {
@@ -18,37 +19,65 @@ public class HypercubeGeneration {
 
     public static HypercubePoint createPartitions(HypercubePoint dataPoint){
         //Create data structure to store values that will become HypercubeID
-        ArrayList<Integer> multiplicationValues = new ArrayList<>();
+        ArrayList<Double> multiplicationValues = new ArrayList<>();
+        double[] arrayOfIDs = new double[2];
         //For each coordinate
         for(Double val : dataPoint.coords) {
             //Find closest multiple of hypercubeSide
             double closestMultiple = val / hypercubeSide;
-            //Store int values to create unique id for Hypercube
-            multiplicationValues.add((int) Math.ceil(closestMultiple));
-            multiplicationValues.add((int) Math.floor(closestMultiple));
+            //Store values to create unique id for Hypercube
+            multiplicationValues.add(closestMultiple);
         }
         //Set hypercubeID and partitionID
-        double newHypercubeID = createHypercubeID(multiplicationValues);
+        arrayOfIDs = createIDs(multiplicationValues);
+        double newHypercubeID = arrayOfIDs[0];
+        double newHyperoctantID = arrayOfIDs[1];
         int newPartitionID = (int) (Math.abs(newHypercubeID) % partitions);
-        return new HypercubePoint(dataPoint.coords, dataPoint.arrival, newHypercubeID, newPartitionID);
+        return new HypercubePoint(dataPoint.coords, dataPoint.arrival, newHypercubeID, newHyperoctantID, newPartitionID);
     }
 
-    public static double createHypercubeID(ArrayList<Integer> multiplicationVals){
-        //Concatenate int values
-        //So {1,4,63,2,5} creates uniqueID 146325
+    public static double[] createIDs(ArrayList<Double> multiplicationVals){
         boolean negative = false;
         String uniqueID = "";
-        for(int currIndex : multiplicationVals){
-            if(currIndex < 0){
-                negative = true;
+        int expCounter = 0;
+        double hyperOctID = 0;
+        double[] idStorage = new double[2];
+
+        //Concatenate int values
+        //So {1.3,4.7,63.1} creates uniqueID 21546463
+        for(double currValue : multiplicationVals){
+            //Check if coordinates are negative
+            if(currValue < 0){ negative = true; }
+
+            //Ceiling and floor are to ensure any values in range of those 2 end up with same hypercubeID
+            int ceiling = (int) Math.ceil(currValue);
+            int floor = (int) Math.floor(currValue);
+            uniqueID += Integer.toString(Math.abs(ceiling));
+            uniqueID += Integer.toString(Math.abs(floor));
+
+            //Find HyperOctant the data point is a member of.
+            double difference = Math.abs(currValue) - Math.abs(floor);
+            if((difference >= 0.5 && !negative) || (difference < 0.5 && negative)){
+                //#HyperOctants increase by 2^n (n = dimensions)
+                hyperOctID += Math.pow(2, expCounter);
             }
-            uniqueID += Integer.toString(Math.abs(currIndex));
+            expCounter++;
         }
+
         if(negative){
-            return Double.parseDouble(uniqueID) * -1;
+            idStorage[0] = Double.parseDouble(uniqueID) * -1;
         }else{
-            return Double.parseDouble(uniqueID);
+            idStorage[0] = Double.parseDouble(uniqueID);
         }
+        idStorage[1] = hyperOctID;
+        return idStorage;
+    }
+
+    public static void createHyperOctant(ArrayList<Integer> multiplicationVals){
+        for(int currIndex : multiplicationVals){
+
+        }
+
     }
 
 
