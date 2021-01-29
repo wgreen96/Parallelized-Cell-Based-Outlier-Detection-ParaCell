@@ -37,7 +37,7 @@ public class HypercubeGeneration {
     }
 
     public static double[] createIDs(ArrayList<Double> multiplicationVals){
-        boolean negative = false;
+        boolean negative;
         String uniqueID = "";
         int expCounter = 0;
         double hyperOctID = 0;
@@ -46,12 +46,14 @@ public class HypercubeGeneration {
         //Concatenate int values
         //So {1.3,4.7,63.1} creates uniqueID 21546463
         for(double currValue : multiplicationVals){
-            //Check if coordinates are negative
+            negative = false;
+            //Check if coordinate is negative
             if(currValue < 0){ negative = true; }
 
             //Ceiling and floor are to ensure any values in range of those 2 end up with same hypercubeID
             int ceiling = (int) Math.ceil(currValue);
             int floor = (int) Math.floor(currValue);
+            //This creates uniqueID for same positive and negative number. (ex = 4.1) 4.1 = 54, -4.1 = 45
             uniqueID += Integer.toString(Math.abs(ceiling));
             uniqueID += Integer.toString(Math.abs(floor));
 
@@ -64,11 +66,7 @@ public class HypercubeGeneration {
             expCounter++;
         }
 
-        if(negative){
-            idStorage[0] = Double.parseDouble(uniqueID) * -1;
-        }else{
-            idStorage[0] = Double.parseDouble(uniqueID);
-        }
+        idStorage[0] = Double.parseDouble(uniqueID);
         idStorage[1] = hyperOctID;
         return idStorage;
     }
