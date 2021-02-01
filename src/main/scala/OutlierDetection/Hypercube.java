@@ -2,29 +2,39 @@ package OutlierDetection;
 
 import java.io.Serializable;
 
-public class HypercubePoint implements Serializable {
+public class Hypercube implements Serializable {
 
     public double[] coords;
     public long arrival;
     public double hypercubeID;
     public double hyperoctantID;
     public int partitionID;
+    public int hypercubeCount;
 
-    public HypercubePoint(){
+    public Hypercube(){
 
     }
 
-    public HypercubePoint(double[] vals, long timeOfArrival){
+    public Hypercube(double[] vals, long timeOfArrival){
         this.coords = vals;
         this.arrival = timeOfArrival;
     }
 
-    public HypercubePoint(double[] vals, long timeOfArrival, double hID, double octID, int pID){
+    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
         this.hyperoctantID = octID;
         this.partitionID = pID;
+    }
+
+    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, int hypcubeCnt){
+        this.coords = vals;
+        this.arrival = timeOfArrival;
+        this.hypercubeID = hID;
+        this.hyperoctantID = octID;
+        this.partitionID = pID;
+        this.hypercubeCount = hypcubeCnt;
     }
 
     public double[] getCoords() {
@@ -36,7 +46,7 @@ public class HypercubePoint implements Serializable {
     }
 
     public long getArrival() {
-        System.out.println(this.arrival);
+//        System.out.println(this.arrival);
         return arrival;
     }
 
@@ -68,7 +78,15 @@ public class HypercubePoint implements Serializable {
         this.partitionID = partitionID;
     }
 
-    public static int getKey(HypercubePoint point){
+    public int getHypercubeCount() {
+        return hypercubeCount;
+    }
+
+    public void setHypercubeCount(int hypercubeCount) {
+        this.hypercubeCount = hypercubeCount;
+    }
+
+    public static int getKey(Hypercube point){
         return point.partitionID;
     }
 
@@ -81,7 +99,12 @@ public class HypercubePoint implements Serializable {
     }
 
     public String toString() {
-        return "Coords: '" + this.coordsToString() + "', Arrival: '" + this.arrival + "', HypercubeID: '" + this.hypercubeID + "'" + "', HyperoctantID: '" + this.hyperoctantID + "'" + "', PartitionID: '" + this.partitionID + "'";
+        return "Coords: " + this.coordsToString() +
+                ", Arrival: " + this.arrival +
+                ", HypercubeID: " + this.hypercubeID +
+                ", HyperoctantID: " + this.hyperoctantID +
+                ", PartitionID: " + this.partitionID +
+                ", HypercubeCount: " + this.hypercubeCount;
     }
 
 }

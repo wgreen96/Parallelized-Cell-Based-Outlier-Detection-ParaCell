@@ -1,49 +1,33 @@
 package OutlierDetection;
 
-import com.typesafe.sslconfig.ssl.ExpressionSymbol;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Expressions;
-import org.apache.flink.table.api.Over;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.descriptors.FormatDescriptor;
-import org.apache.flink.table.descriptors.OldCsv;
-import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.sinks.CsvTableSink;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.types.Row;
 
-import java.nio.file.FileSystem;
 import java.util.*;
 
-import static org.apache.flink.table.api.Expressions.*;
-
-public class TestStreamingJob {
+public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        //String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
         double radius = 5;
         double dimensions = 3;
         int partitions = 3;
-//        double common_R = 0.35;
-//        long windowSize = 10000;
-//        long slideSize = 500;
-//        double kNeighs = 50;
+        long windowSize = 10000;
+        long slideSize = 500;
+        double kNeighs = 50;
+
+        //Generate environment for DataStream and Table API
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(partitions);
+        StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
 
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
         HypercubeGeneration.dimensions = dimensions;
@@ -53,40 +37,40 @@ public class TestStreamingJob {
         HypercubeGeneration.partitions = partitions;
 
         //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
-        CellSummaryCreation.lifeThreshold = 100;
-
-        //Generate environment for DataStream and Table API
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(partitions);
-        StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
+        CellSummaryCreation.lifeThreshold = 200;
+        OutlierDetection.lifeThreshold = 200;
+        TempOutlierDetection.lifeThreshold = 200;
 
         //Create DataStream using a source
-        DataStream<HypercubePoint> dataStream = env
+        DataStream<Hypercube> dataStream = env
                 .readTextFile(myInput)
                 .map((line) -> {
                     String[] cells = line.split(line_delimiter);
                     String[] stringCoords = cells[1].split(delimiter);
                     double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
-                    long timeStamp = Long.parseLong(cells[0]);
-                    return new HypercubePoint(coords, timeStamp);
+                    //This will probably be changed when I switch to Kafka source
+                    long currTime = System.currentTimeMillis();
+                    return new Hypercube(coords, currTime);
                 });
 
+
         //Generate HypercubeID and PartitionID for each data object in the stream
-        DataStream<HypercubePoint> newData =
+        DataStream<Hypercube> dataWithHypercubeID =
                 dataStream
                         .map(HypercubeGeneration::createPartitions);
 
-
         //Partition the data by partitionID
-        DataStream<Tuple2<Double, Integer>> cellSummaries =
-                newData
-                        .keyBy(HypercubePoint::getKey)
-                        .process(new CellSummaryCreation())
-                        .setParallelism(partitions);
+        DataStream<Hypercube> dataWithCellSummaries =
+                dataWithHypercubeID
+                        .keyBy(Hypercube::getKey)
+                        .process(new CellSummaryCreation());
 
-        cellSummaries
-                .print()
-                .setParallelism(1);
+        dataWithCellSummaries
+                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                .allowedLateness(Time.milliseconds(slideSize))
+                .process(new TempOutlierDetection());
+
+
 
         env.execute("Java Streaming Job");
     }
@@ -155,3 +139,23 @@ public class TestStreamingJob {
 
 //                .assignTimestampsAndWatermarks(WatermarkStrategy.<HypercubePoint>forMonotonousTimestamps()
 //                                                                .withTimestampAssigner((HypercubePoint, timestamp) -> HypercubePoint.getArrival()));
+
+//        cellSummaries
+//                .print()
+//                .setParallelism(1);
+
+//        //Partition the data by partitionID
+//        DataStream<Tuple2<Double, Integer>> cellSummaries =
+//                dataWithHypercubeID
+//                        .keyBy(HypercubePoint::getKey)
+//                        .process(new CellSummaryCreation());
+
+//        cellSummaries
+//                .print()
+//                .setParallelism(1);
+
+
+//        cellSummaries
+//                .connect(newData)
+//                .process(new OutlierDetection())
+//                .setParallelism(1);

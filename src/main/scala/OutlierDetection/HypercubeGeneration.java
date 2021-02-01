@@ -1,7 +1,6 @@
 package OutlierDetection;
 
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class HypercubeGeneration {
@@ -17,7 +16,7 @@ public class HypercubeGeneration {
 
     }
 
-    public static HypercubePoint createPartitions(HypercubePoint dataPoint){
+    public static Hypercube createPartitions(Hypercube dataPoint){
         //Create data structure to store values that will become HypercubeID
         ArrayList<Double> multiplicationValues = new ArrayList<>();
         double[] arrayOfIDs = new double[2];
@@ -33,7 +32,7 @@ public class HypercubeGeneration {
         double newHypercubeID = arrayOfIDs[0];
         double newHyperoctantID = arrayOfIDs[1];
         int newPartitionID = (int) (Math.abs(newHypercubeID) % partitions);
-        return new HypercubePoint(dataPoint.coords, dataPoint.arrival, newHypercubeID, newHyperoctantID, newPartitionID);
+        return new Hypercube(dataPoint.coords, dataPoint.arrival, newHypercubeID, newHyperoctantID, newPartitionID);
     }
 
     public static double[] createIDs(ArrayList<Double> multiplicationVals){
@@ -53,7 +52,7 @@ public class HypercubeGeneration {
             //Ceiling and floor are to ensure any values in range of those 2 end up with same hypercubeID
             int ceiling = (int) Math.ceil(currValue);
             int floor = (int) Math.floor(currValue);
-            //This creates uniqueID for same positive and negative number. (ex = 4.1) 4.1 = 54, -4.1 = 45
+            //This creates uniqueID for the same positive and negative number. (ex = 4.1) 4.1 = 54, -4.1 = 45
             uniqueID += Integer.toString(Math.abs(ceiling));
             uniqueID += Integer.toString(Math.abs(floor));
 
@@ -70,14 +69,6 @@ public class HypercubeGeneration {
         idStorage[1] = hyperOctID;
         return idStorage;
     }
-
-    public static void createHyperOctant(ArrayList<Integer> multiplicationVals){
-        for(int currIndex : multiplicationVals){
-
-        }
-
-    }
-
 
 }
 //METHOD FOR STORING HYPERCUBEID, PARTITIONID IN HASKMAP, MAY BE USEFUL LATER ON IF CURRENT METHOD IS UNBALANCED

@@ -2,15 +2,13 @@ package OutlierDetection;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 import java.util.LinkedList;
 
 
-//public class CellSummaryCreation extends KeyedProcessFunction<Integer, HypercubePoint, Iterable<Map.Entry<Integer, Integer>>> {
-public class CellSummaryCreation extends KeyedProcessFunction<Integer, HypercubePoint, Tuple2<Double, Integer>> {
+public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
 
     //State stores (HypercubeID, count of data points with HypercubeID)
     private MapState<Double, Integer> hypercubeState;
@@ -28,12 +26,12 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
 
     @Override
     public void processElement(
-            HypercubePoint hypercubePoint,
+            Hypercube currPoint,
             Context context,
-            Collector<Tuple2<Double, Integer>> collector) throws Exception {
+            Collector<Hypercube> collector) throws Exception {
 
         //Parse hypercubeID
-        double currHypID = hypercubePoint.hypercubeID;
+        double currHypID = currPoint.hypercubeID;
         //Check if that hypercubeID exists in MapState
         if(hypercubeState.contains(currHypID)){
             //True, increment value associated with ID
@@ -45,17 +43,19 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         }
 
         LinkedList hypercubeQueue;
-        //Get time for data point currently being processed and place in Queue
-        long currentTime = context.timerService().currentProcessingTime();
+
         //If state already exist, return current time state
         if(timeState.contains(currHypID)){
             hypercubeQueue = timeState.get(currHypID);
         }else{
             hypercubeQueue = new LinkedList<>();
         }
-        //Add newest time to time state
-        hypercubeQueue.add(currentTime);
 
+        //Add newest time to time state. Using arrival is not perfect, there will be some deviations within 100ms range in the FIFO queue because of parallel processing
+        //That should be fine for many domains and depends on window size, but would need to be revised if its something like high frequency stock trading
+        hypercubeQueue.add(currPoint.arrival);
+
+        long currentTime = context.timerService().currentProcessingTime();
         //Check if data points in FIFO queue are to be pruned
         boolean pruning = true;
         while(pruning){
@@ -66,7 +66,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
                 int newVal = hypercubeState.get(currHypID) - 1;
                 hypercubeState.put(currHypID, newVal);
             }else{
-                //If not, stop checking. We are assured no further elements can be removed because any element after the head is newer
+                //If not, stop checking. No further elements can be removed because any element after the head is unlikely to be newer
                 pruning = false;
             }
         }
@@ -75,10 +75,20 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         timeState.put(currHypID, hypercubeQueue);
 
         //Return state with HypercubeID, count to be processed by OutlierDetection function
-        Tuple2<Double, Integer> stateOfHypercube = new Tuple2<Double, Integer>(currHypID, hypercubeState.get(currHypID));
-        collector.collect(stateOfHypercube);
+        Hypercube newPoint = new Hypercube(currPoint.coords, currPoint.arrival, currPoint.hypercubeID,
+                                                    currPoint.hyperoctantID, currPoint.partitionID, hypercubeState.get(currHypID));
+
+        collector.collect(newPoint);
 
     }
 }
 
+//public class CellSummaryCreation extends KeyedProcessFunction<Integer, HypercubePoint, Tuple2<Double, Integer>> {
+//    public void processElement(
+//            HypercubePoint hypercubePoint,
+//            Context context,
+//            Collector<Tuple2<Double, Integer>> collector) throws Exception {
+
+//Tuple2<Double, Integer> stateOfHypercube = new Tuple2<Double, Integer>(currHypID, hypercubeState.get(currHypID));
+//        collector.collect(stateOfHypercube);
 
