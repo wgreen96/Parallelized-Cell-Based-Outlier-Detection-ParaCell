@@ -12,8 +12,8 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        //String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
@@ -23,6 +23,7 @@ public class StreamingJob {
         long windowSize = 10000;
         long slideSize = 500;
         int kNeighs = 50;
+        int timeThreshold = 200;
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -37,11 +38,11 @@ public class StreamingJob {
         HypercubeGeneration.partitions = partitions;
 
         //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
-        CellSummaryCreation.lifeThreshold = 200;
-        OutlierDetectionTheThird.lifeThreshold = 200;
+        CellSummaryCreation.lifeThreshold = timeThreshold;
+        OutlierDetectionTheThird.lifeThreshold = timeThreshold;
         OutlierDetectionTheThird.kNeighs = kNeighs;
         OutlierDetectionTheThird.dimensions = dimensions;
-        OutlierDetectionTheThird.rangeOfValues = (radius - (HypercubeGeneration.hypercubeSide/2)) / HypercubeGeneration.hypercubeSide;
+        OutlierDetectionTheThird.rangeOfValues = Math.ceil((radius - (HypercubeGeneration.hypercubeSide/2)) / HypercubeGeneration.hypercubeSide);
 
         //Create DataStream using a source
         DataStream<Hypercube> dataStream = env
