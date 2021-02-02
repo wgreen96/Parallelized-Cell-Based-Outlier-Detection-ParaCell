@@ -22,8 +22,8 @@ public class HypercubeGeneration {
         double[] arrayOfIDs = new double[2];
         //For each coordinate
         for(Double val : dataPoint.coords) {
-            //Find closest multiple of hypercubeSide
-            double closestMultiple = val / hypercubeSide;
+            //Find closest multiple of hypercubeSide. 0.0001 is included to stop really small values from being concatenated to 0.0
+            double closestMultiple = val / hypercubeSide + 0.0001;
             //Store values to create unique id for Hypercube
             multiplicationValues.add(closestMultiple);
         }
@@ -38,6 +38,8 @@ public class HypercubeGeneration {
     public static double[] createIDs(ArrayList<Double> multiplicationVals){
         boolean negative;
         String uniqueID = "";
+        //Value to parse UniqueID later
+        String uniqueIDSize = "";
         int expCounter = 0;
         double hyperOctID = 0;
         double[] idStorage = new double[2];
@@ -55,6 +57,16 @@ public class HypercubeGeneration {
             //This creates uniqueID for the same positive and negative number. (ex = 4.1) 4.1 = 54, -4.1 = 45
             uniqueID += Integer.toString(Math.abs(ceiling));
             uniqueID += Integer.toString(Math.abs(floor));
+            //Special case, Java ignores 0 if it is first value
+            if(ceiling == 0){
+                uniqueIDSize += 1;
+            }else if(Math.abs(currValue) < 10) {
+                uniqueIDSize += 2;
+            }else{
+                uniqueIDSize += Integer.toString((int) (Math.floor(Math.log10(Math.abs(currValue))) + 1) * 2);
+            }
+
+            //System.out.println("Coord: " + currValue + ", ceiling: " + ceiling + ", floor: " + floor);
 
             //Find HyperOctant the data point is a member of.
             double difference = Math.abs(currValue) - Math.abs(floor);
@@ -64,9 +76,12 @@ public class HypercubeGeneration {
             }
             expCounter++;
         }
+        //Concatenate values so I can use information later
+        uniqueID += uniqueIDSize;
 
         idStorage[0] = Double.parseDouble(uniqueID);
         idStorage[1] = hyperOctID;
+
         return idStorage;
     }
 

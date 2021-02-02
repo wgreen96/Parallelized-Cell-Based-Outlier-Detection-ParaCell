@@ -12,8 +12,8 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        //String myInput = "/home/green/Documents/PROUD/data/STK/input_20k.txt";
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
@@ -22,7 +22,7 @@ public class StreamingJob {
         int partitions = 3;
         long windowSize = 10000;
         long slideSize = 500;
-        double kNeighs = 50;
+        int kNeighs = 50;
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -38,8 +38,10 @@ public class StreamingJob {
 
         //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
         CellSummaryCreation.lifeThreshold = 200;
-        OutlierDetection.lifeThreshold = 200;
-        TempOutlierDetection.lifeThreshold = 200;
+        OutlierDetectionTheThird.lifeThreshold = 200;
+        OutlierDetectionTheThird.kNeighs = kNeighs;
+        OutlierDetectionTheThird.dimensions = dimensions;
+        OutlierDetectionTheThird.rangeOfValues = (radius - (HypercubeGeneration.hypercubeSide/2)) / HypercubeGeneration.hypercubeSide;
 
         //Create DataStream using a source
         DataStream<Hypercube> dataStream = env
@@ -57,7 +59,8 @@ public class StreamingJob {
         //Generate HypercubeID and PartitionID for each data object in the stream
         DataStream<Hypercube> dataWithHypercubeID =
                 dataStream
-                        .map(HypercubeGeneration::createPartitions);
+                        .map(HypercubeGeneration::createPartitions)
+                        .setParallelism(1);
 
         //Partition the data by partitionID
         DataStream<Hypercube> dataWithCellSummaries =
@@ -65,10 +68,10 @@ public class StreamingJob {
                         .keyBy(Hypercube::getKey)
                         .process(new CellSummaryCreation());
 
+        //Outlier Detection
         dataWithCellSummaries
-                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                .allowedLateness(Time.milliseconds(slideSize))
-                .process(new TempOutlierDetection());
+                .process(new OutlierDetectionTheThird())
+                .setParallelism(1);
 
 
 

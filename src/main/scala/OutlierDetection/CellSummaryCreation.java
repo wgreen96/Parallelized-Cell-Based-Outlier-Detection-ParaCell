@@ -1,11 +1,20 @@
 package OutlierDetection;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import org.apache.commons.collections.IteratorUtils;
 
 
 public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
@@ -22,7 +31,8 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
     public void open(Configuration parameters) throws Exception {
         hypercubeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Hypercube Count", Double.class, Integer.class));
         timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", Double.class, LinkedList.class));
-    }
+ }
+
 
     @Override
     public void processElement(
@@ -41,6 +51,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
             //False, create key, value pair
             hypercubeState.put(currHypID, 1);
         }
+
 
         LinkedList hypercubeQueue;
 
