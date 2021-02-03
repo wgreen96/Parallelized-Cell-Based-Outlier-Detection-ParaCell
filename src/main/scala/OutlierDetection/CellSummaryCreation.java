@@ -23,6 +23,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
     private MapState<Double, Integer> hypercubeState;
     //State stores (HypercubeID, time before data point is pruned and state.value should be decremented)
     private MapState<Double, LinkedList> timeState;
+    private MapState<Double, Integer> testState;
 
     //The amount of time after processing that a data point can live. Is measured in milliseconds
     static long lifeThreshold;
@@ -31,7 +32,8 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
     public void open(Configuration parameters) throws Exception {
         hypercubeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Hypercube Count", Double.class, Integer.class));
         timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", Double.class, LinkedList.class));
- }
+        testState = getRuntimeContext().getMapState(new MapStateDescriptor<>("testy", Double.class, Integer.class));
+    }
 
 
     @Override
@@ -39,6 +41,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
             Hypercube currPoint,
             Context context,
             Collector<Hypercube> collector) throws Exception {
+
 
         //Parse hypercubeID
         double currHypID = currPoint.hypercubeID;
@@ -87,7 +90,8 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
 
         //Return state with HypercubeID, count to be processed by OutlierDetection function
         Hypercube newPoint = new Hypercube(currPoint.coords, currPoint.arrival, currPoint.hypercubeID,
-                                                    currPoint.hyperoctantID, currPoint.partitionID, hypercubeState.get(currHypID));
+                                                    currPoint.hyperoctantID, currPoint.partitionID,
+                                                    currPoint.meanMultis, hypercubeState.get(currHypID));
 
         collector.collect(newPoint);
 

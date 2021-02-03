@@ -12,14 +12,14 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        //String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
         double radius = 5;
         double dimensions = 3;
-        int partitions = 3;
+        int partitions = 8;
         long windowSize = 10000;
         long slideSize = 500;
         int kNeighs = 50;
@@ -42,7 +42,7 @@ public class StreamingJob {
         OutlierDetectionTheThird.lifeThreshold = timeThreshold;
         OutlierDetectionTheThird.kNeighs = kNeighs;
         OutlierDetectionTheThird.dimensions = dimensions;
-        OutlierDetectionTheThird.rangeOfValues = Math.ceil((radius - (HypercubeGeneration.hypercubeSide/2)) / HypercubeGeneration.hypercubeSide);
+        OutlierDetectionTheThird.radius = radius;
 
         //Create DataStream using a source
         DataStream<Hypercube> dataStream = env
@@ -69,11 +69,10 @@ public class StreamingJob {
                         .keyBy(Hypercube::getKey)
                         .process(new CellSummaryCreation());
 
-        //Outlier Detection
-        dataWithCellSummaries
-                .process(new OutlierDetectionTheThird())
-                .setParallelism(1);
-
+//        //Outlier Detection
+//        dataWithCellSummaries
+//                .process(new OutlierDetectionTheThird())
+//                .setParallelism(1);
 
 
         env.execute("Java Streaming Job");

@@ -11,6 +11,9 @@ public class Hypercube implements Serializable {
     public int partitionID;
     public int hypercubeCount;
 
+
+    public double[] meanMultis;
+
     public Hypercube(){
 
     }
@@ -20,20 +23,22 @@ public class Hypercube implements Serializable {
         this.arrival = timeOfArrival;
     }
 
-    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID){
+    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, double[] means){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
         this.hyperoctantID = octID;
         this.partitionID = pID;
+        this.meanMultis = means;
     }
 
-    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, int hypcubeCnt){
+    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, double[] means, int hypcubeCnt){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
         this.hyperoctantID = octID;
         this.partitionID = pID;
+        this.meanMultis = means;
         this.hypercubeCount = hypcubeCnt;
     }
 
@@ -86,6 +91,14 @@ public class Hypercube implements Serializable {
         this.hypercubeCount = hypercubeCount;
     }
 
+    public double[] getMeanMultis() {
+        return meanMultis;
+    }
+
+    public void setMeanMultis(double[] meanMultis) {
+        this.meanMultis = meanMultis;
+    }
+
     public static int getKey(Hypercube point){
         return point.partitionID;
     }
@@ -98,13 +111,22 @@ public class Hypercube implements Serializable {
         return coordString;
     }
 
+    public String meansToString(){
+        String coordString = "";
+        for(double coorVals : this.meanMultis){
+            coordString += Double.toString(coorVals) + ", ";
+        }
+        return coordString;
+    }
+
     public String toString() {
         return "Coords: " + this.coordsToString() +
                 ", Arrival: " + this.arrival +
                 ", HypercubeID: " + this.hypercubeID +
                 ", HyperoctantID: " + this.hyperoctantID +
                 ", PartitionID: " + this.partitionID +
-                ", HypercubeCount: " + this.hypercubeCount;
+                ", HypercubeCount: " + this.hypercubeCount +
+                ", Mean coords: " + this.meansToString();
     }
 
 }
