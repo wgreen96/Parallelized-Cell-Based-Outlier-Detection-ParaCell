@@ -3,6 +3,7 @@ package OutlierDetection;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -12,8 +13,8 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        //String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
@@ -60,8 +61,7 @@ public class StreamingJob {
         //Generate HypercubeID and PartitionID for each data object in the stream
         DataStream<Hypercube> dataWithHypercubeID =
                 dataStream
-                        .map(HypercubeGeneration::createPartitions)
-                        .setParallelism(1);
+                        .map(HypercubeGeneration::createPartitions);
 
         //Partition the data by partitionID
         DataStream<Hypercube> dataWithCellSummaries =
@@ -69,10 +69,15 @@ public class StreamingJob {
                         .keyBy(Hypercube::getKey)
                         .process(new CellSummaryCreation());
 
-//        //Outlier Detection
+        //Outlier Detection
+        dataWithCellSummaries
+                .process(new OutlierDetectionTheThird())
+                .setParallelism(1);
+
 //        dataWithCellSummaries
-//                .process(new OutlierDetectionTheThird())
-//                .setParallelism(1);
+//                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(timeThreshold), Time.milliseconds(timeThreshold-timeThreshold/2)))
+//                .evictor(TimeEvictor.of(Time.milliseconds(100), true))
+//                .process(new OutlierDetectionTheFourth());
 
 
         env.execute("Java Streaming Job");

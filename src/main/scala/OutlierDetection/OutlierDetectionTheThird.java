@@ -1,12 +1,8 @@
 package OutlierDetection;
 
-import be.tarsos.lsh.families.DistanceMeasure;
-import be.tarsos.lsh.families.HashFamily;
-import be.tarsos.lsh.families.HashFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
-import be.tarsos.lsh.*;
 
 import java.text.DecimalFormat;
 import java.util.*;
@@ -38,7 +34,7 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
             Collector<String> collector) throws Exception {
 
         //Key data points by HypercubeID for easier extraction later
-        if(setOfDataPoints.get(currPoint).isEmpty()){
+        if(!setOfDataPoints.containsKey(currPoint)){
             ArrayList<double[]> newList = new ArrayList<>();
             newList.add(currPoint.meanMultis);
             setOfDataPoints.put(currPoint.hypercubeID,newList);
@@ -92,6 +88,7 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
         //Check if data points in FIFO queue are to be pruned
         boolean pruning = true;
         while(pruning){
+
             //Check if head of Queue - currentTime is greater than threshold.
             if(hypercubeQueue.peek() != null && (currentTime - (long) hypercubeQueue.peek()) > lifeThreshold){
                 //If so: remove the head, run outlier detection
