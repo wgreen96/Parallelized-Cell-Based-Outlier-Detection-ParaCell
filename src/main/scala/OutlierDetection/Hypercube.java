@@ -12,7 +12,7 @@ public class Hypercube implements Serializable {
     public int hypercubeCount;
 
 
-    public double[] meanMultis;
+    public double[] centerOfCellCoords;
 
     public Hypercube(){
 
@@ -29,7 +29,7 @@ public class Hypercube implements Serializable {
         this.hypercubeID = hID;
         this.hyperoctantID = octID;
         this.partitionID = pID;
-        this.meanMultis = means;
+        this.centerOfCellCoords = means;
     }
 
     public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, double[] means, int hypcubeCnt){
@@ -38,7 +38,7 @@ public class Hypercube implements Serializable {
         this.hypercubeID = hID;
         this.hyperoctantID = octID;
         this.partitionID = pID;
-        this.meanMultis = means;
+        this.centerOfCellCoords = means;
         this.hypercubeCount = hypcubeCnt;
     }
 
@@ -91,12 +91,12 @@ public class Hypercube implements Serializable {
         this.hypercubeCount = hypercubeCount;
     }
 
-    public double[] getMeanMultis() {
-        return meanMultis;
+    public double[] getCenterOfCellCoords() {
+        return centerOfCellCoords;
     }
 
-    public void setMeanMultis(double[] meanMultis) {
-        this.meanMultis = meanMultis;
+    public void setCenterOfCellCoords(double[] centerOfCellCoords) {
+        this.centerOfCellCoords = centerOfCellCoords;
     }
 
     public static int getKey(Hypercube point){
@@ -113,20 +113,28 @@ public class Hypercube implements Serializable {
 
     public String meansToString(){
         String coordString = "";
-        for(double coorVals : this.meanMultis){
+        for(double coorVals : this.centerOfCellCoords){
             coordString += Double.toString(coorVals) + ", ";
         }
         return coordString;
     }
 
+//    public String toString() {
+//        return "Coords: " + this.coordsToString() +
+//                ", Arrival: " + this.arrival +
+//                ", HypercubeID: " + this.hypercubeID +
+//                ", HyperoctantID: " + this.hyperoctantID +
+//                ", PartitionID: " + this.partitionID +
+//                ", HypercubeCount: " + this.hypercubeCount +
+//                ", Mean coords: " + this.meansToString();
+//    }
+
     public String toString() {
         return "Coords: " + this.coordsToString() +
                 ", Arrival: " + this.arrival +
                 ", HypercubeID: " + this.hypercubeID +
-                ", HyperoctantID: " + this.hyperoctantID +
-                ", PartitionID: " + this.partitionID +
-                ", HypercubeCount: " + this.hypercubeCount +
-                ", Mean coords: " + this.meansToString();
+                ", HypercubeCount: " + this.hypercubeCount;
     }
+
 
 }

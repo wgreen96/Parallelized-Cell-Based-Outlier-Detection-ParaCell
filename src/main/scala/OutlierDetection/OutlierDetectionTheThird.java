@@ -4,11 +4,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 
-import java.text.DecimalFormat;
+
 import java.util.*;
 import java.util.Vector;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String> {
 
@@ -19,11 +17,12 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
     //The amount of time after processing that a data point can live. Is measured in milliseconds
     static long lifeThreshold;
     static double dimensions;
+    int totalCounter = 0;
 
     Map<Double, Integer> hypercubeState = new HashMap<Double, Integer>();
     Map<Tuple2, Integer> hyperOctantState = new HashMap<Tuple2, Integer>();
     Map<Double, LinkedList> timeState = new HashMap<Double, LinkedList>();
-    Map<Double, double[]> meanCoords = new HashMap<Double, double[]>();
+    Map<Double, double[]> cellCenterCoords = new HashMap<Double, double[]>();
     Map<Double, ArrayList> setOfDataPoints = new HashMap<Double, ArrayList>();
     ArrayList<Double> sortedIDs = new ArrayList<Double>();
 
@@ -36,11 +35,11 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
         //Key data points by HypercubeID for easier extraction later
         if(!setOfDataPoints.containsKey(currPoint)){
             ArrayList<double[]> newList = new ArrayList<>();
-            newList.add(currPoint.meanMultis);
+            newList.add(currPoint.centerOfCellCoords);
             setOfDataPoints.put(currPoint.hypercubeID,newList);
         }else{
             ArrayList<double[]> newList = setOfDataPoints.get(currPoint.hypercubeID);
-            newList.add(currPoint.meanMultis);
+            newList.add(currPoint.centerOfCellCoords);
             setOfDataPoints.put(currPoint.hypercubeID,newList);
         }
 
@@ -57,7 +56,7 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
         //Create a sorted list of hypercubes for searching in Outlier Detection
         if(newHypercube == true){
             //Add mean values for hypercube mean state
-            meanCoords.put(currHypID, currPoint.meanMultis);
+            cellCenterCoords.put(currHypID, currPoint.centerOfCellCoords);
             //Insert hypercubeID in array while keeping a sorted structure
             sortedIDs.add(currHypID);
             Collections.sort(sortedIDs);
@@ -100,7 +99,7 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
                     int totalNeighborhoodCount = hypercubeState.get(currHypID);
                     ArrayList<Double> setOfNeighs = new ArrayList<>();
 
-                    double[] setOfMulties = meanCoords.get(currHypID);
+                    double[] centerCoords = cellCenterCoords.get(currHypID);
 
                     //Compare ID of current Hypercube to the rest of hypercubes
                     for(Double currCubes: sortedIDs){
@@ -108,12 +107,12 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
                         if(currCubes == currHypID){
                             continue;
                         }
-                        double[] setOfMulties2 = meanCoords.get(currCubes);
+                        double[] centerCoords2 = cellCenterCoords.get(currCubes);
 
                         double distance = 0;
                         //Calculate distance function
-                        for(int currIndex = 0; currIndex < setOfMulties.length; currIndex++){
-                            distance += Math.pow(setOfMulties[currIndex] - setOfMulties2[currIndex], 2);
+                        for(int currIndex = 0; currIndex < centerCoords.length; currIndex++){
+                            distance += Math.pow(centerCoords[currIndex] - centerCoords2[currIndex], 2);
                         }
                         distance = Math.sqrt(distance);
                         double upperBound = distance + (radius/2);
@@ -137,8 +136,11 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
 
                     }
 
+
                     //Now we have compared level 1 neighbors. If that still isn't above k, need to get level 2 neighbors
                     if(totalNeighborhoodCount < kNeighs){
+                        System.out.println(totalNeighborhoodCount);
+                        totalCounter++;
                         //Start off by getting all data points from level 1 and 2 cells
                         ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
                         Vector<double[]> test = new Vector<>();
@@ -147,8 +149,8 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
                             test.addAll(setOfDataPoints.get(currNeighs));
                         }
                         //Pass data to LSH
-                        //LSH approxDetection = new LSH(setOfNeighPoints, HashFamily.createHashFamily());
-                        //approxDetection.query(test, kNeighs);
+                        //LSHMinHash lsh = new LSHMinHash(stages, numberOfBuckets, dimensions);
+
                     }
                     //System.out.println(totalNeighborhoodCount);
 
@@ -164,6 +166,7 @@ public class OutlierDetectionTheThird extends ProcessFunction<Hypercube, String>
         }
         //After doing outlier detection
         timeState.put(currHypID, hypercubeQueue);
+        //System.out.println(totalCounter);
 
 
 

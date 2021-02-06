@@ -1,20 +1,12 @@
 package OutlierDetection;
 
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import org.apache.commons.collections.IteratorUtils;
 
 
 public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
@@ -56,6 +48,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         }
 
 
+
         LinkedList hypercubeQueue;
 
         //If state already exist, return current time state
@@ -91,7 +84,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         //Return state with HypercubeID, count to be processed by OutlierDetection function
         Hypercube newPoint = new Hypercube(currPoint.coords, currPoint.arrival, currPoint.hypercubeID,
                                                     currPoint.hyperoctantID, currPoint.partitionID,
-                                                    currPoint.meanMultis, hypercubeState.get(currHypID));
+                                                    currPoint.centerOfCellCoords, hypercubeState.get(currHypID));
 
         collector.collect(newPoint);
 
