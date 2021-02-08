@@ -10,8 +10,6 @@ public class Hypercube implements Serializable {
     public double hyperoctantID;
     public int partitionID;
     public int hypercubeCount;
-
-
     public double[] centerOfCellCoords;
 
     public Hypercube(){

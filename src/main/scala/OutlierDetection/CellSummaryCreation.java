@@ -2,6 +2,11 @@ package OutlierDetection;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
@@ -12,19 +17,22 @@ import java.util.LinkedList;
 public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
 
     //State stores (HypercubeID, count of data points with HypercubeID)
-    private MapState<Double, Integer> hypercubeState;
+    private MapState<Double, Tuple2<Integer, Long>> hypercubeState;
     //State stores (HypercubeID, time before data point is pruned and state.value should be decremented)
     private MapState<Double, LinkedList> timeState;
-    private MapState<Double, Integer> testState;
 
     //The amount of time after processing that a data point can live. Is measured in milliseconds
-    static long lifeThreshold;
+    static long windowSize;
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        hypercubeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Hypercube Count", Double.class, Integer.class));
+        MapStateDescriptor<Double, Tuple2<Integer, Long>> hypState = new MapStateDescriptor<>(
+                "modelState",
+                BasicTypeInfo.DOUBLE_TYPE_INFO,
+                TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Long.class));
+        hypercubeState = getRuntimeContext().getMapState(hypState);
+        //hypercubeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Hypercube Count", Double.class, Tuple2.class));
         timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", Double.class, LinkedList.class));
-        testState = getRuntimeContext().getMapState(new MapStateDescriptor<>("testy", Double.class, Integer.class));
     }
 
 
@@ -37,17 +45,19 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
 
         //Parse hypercubeID
         double currHypID = currPoint.hypercubeID;
-        //Check if that hypercubeID exists in MapState
+        //Check if that hypercubeID exists in MapState. If so
         if(hypercubeState.contains(currHypID)){
-            //True, increment value associated with ID
-            int newVal = hypercubeState.get(currHypID) + 1;
-            hypercubeState.put(currHypID, newVal);
+            //True, increment value and timestamp associated with ID
+            Tuple2<Integer, Long> currState = hypercubeState.get(currHypID);
+            int newVal = currState.f0 + 1;
+            long newTime = currState.f1 + 1;
+            hypercubeState.put(currHypID, new Tuple2<Integer, Long>(newVal, newTime));
         }else{
             //False, create key, value pair
-            hypercubeState.put(currHypID, 1);
+            int newVal = 1;
+            long newTime = context.timerService().currentProcessingTime();
+            hypercubeState.put(currHypID, new Tuple2<Integer, Long>(newVal, newTime));
         }
-
-
 
         LinkedList hypercubeQueue;
 
@@ -67,11 +77,12 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         boolean pruning = true;
         while(pruning){
             //Check if head of Queue - currentTime is greater than threshold.
-            if(hypercubeQueue.peek() != null && (currentTime - (long) hypercubeQueue.peek()) > lifeThreshold){
+            if(hypercubeQueue.peek() != null && (currentTime - (long) hypercubeQueue.peek()) > windowSize){
                 //If so: remove the head, decrement the count, and continue checking
                 hypercubeQueue.remove();
-                int newVal = hypercubeState.get(currHypID) - 1;
-                hypercubeState.put(currHypID, newVal);
+                Tuple2<Integer, Long> currState = hypercubeState.get(currHypID);
+                currState.f0 = currState.f0 - 1;
+                hypercubeState.put(currHypID, currState);
             }else{
                 //If not, stop checking. No further elements can be removed because any element after the head is unlikely to be newer
                 pruning = false;
@@ -81,10 +92,15 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         //Add new state of hypercubeQueue to Map
         timeState.put(currHypID, hypercubeQueue);
 
+
+        Tuple2<Integer, Long> currState = hypercubeState.get(currHypID);
+
+        //System.out.println("Current ID: " + currHypID + ", Current Time: " + currState.f1);
+
         //Return state with HypercubeID, count to be processed by OutlierDetection function
-        Hypercube newPoint = new Hypercube(currPoint.coords, currPoint.arrival, currPoint.hypercubeID,
+        Hypercube newPoint = new Hypercube(currPoint.coords, currState.f1, currPoint.hypercubeID,
                                                     currPoint.hyperoctantID, currPoint.partitionID,
-                                                    currPoint.centerOfCellCoords, hypercubeState.get(currHypID));
+                                                    currPoint.centerOfCellCoords, currState.f0);
 
         collector.collect(newPoint);
 

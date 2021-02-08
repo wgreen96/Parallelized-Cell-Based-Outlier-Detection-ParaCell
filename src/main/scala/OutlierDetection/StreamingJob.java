@@ -3,28 +3,27 @@ package OutlierDetection;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/input_20k.txt";
+        //String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
         double radius = 5;
-        double dimensions = 3;
+        int dimensions = 3;
         int partitions = 8;
-        long windowSize = 10000;
-        long slideSize = 500;
+        long windowSize = 500;
+        long slideSize = 250;
         int kNeighs = 50;
-        int timeThreshold = 200;
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -39,23 +38,29 @@ public class StreamingJob {
         HypercubeGeneration.partitions = partitions;
 
         //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
-        CellSummaryCreation.lifeThreshold = timeThreshold;
-        OutlierDetectionTheThird.lifeThreshold = timeThreshold;
-        OutlierDetectionTheThird.kNeighs = kNeighs;
-        OutlierDetectionTheThird.dimensions = dimensions;
-        OutlierDetectionTheThird.radius = radius;
+        CellSummaryCreation.windowSize = windowSize;
+//        OutlierDetectionTheThird.lifeThreshold = windowSize;
+//        OutlierDetectionTheThird.kNeighs = kNeighs;
+//        OutlierDetectionTheThird.dimensions = dimensions;
+//        OutlierDetectionTheThird.radius = radius;
+        OutlierDetectionTheFourth.windowSize = windowSize;
+        OutlierDetectionTheFourth.slideSize = slideSize;
+        OutlierDetectionTheFourth.kNeighs = kNeighs;
+        OutlierDetectionTheFourth.dimensions = dimensions;
+        OutlierDetectionTheFourth.radius = radius;
+
 
         //Create DataStream using a source
         DataStream<Hypercube> dataStream = env
                 .readTextFile(myInput)
                 .map((line) -> {
-                    String[] cells = line.split(line_delimiter);
-                    String[] stringCoords = cells[1].split(delimiter);
+                    String[] stringCoords = line.split(delimiter);
                     double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
-                    //This will probably be changed when I switch to Kafka source
                     long currTime = System.currentTimeMillis();
                     return new Hypercube(coords, currTime);
-                });
+                })
+                .setParallelism(1);
+
 
 
         //Generate HypercubeID and PartitionID for each data object in the stream
@@ -69,15 +74,9 @@ public class StreamingJob {
                         .keyBy(Hypercube::getKey)
                         .process(new CellSummaryCreation());
 
-        //Outlier Detection
         dataWithCellSummaries
-                .process(new OutlierDetectionTheThird())
-                .setParallelism(1);
-
-//        dataWithCellSummaries
-//                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(timeThreshold), Time.milliseconds(timeThreshold-timeThreshold/2)))
-//                .evictor(TimeEvictor.of(Time.milliseconds(100), true))
-//                .process(new OutlierDetectionTheFourth());
+                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                .process(new OutlierDetectionTheFourth());
 
 
         env.execute("Java Streaming Job");
