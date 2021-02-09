@@ -99,6 +99,14 @@ under the License.
 			<version>2.6.0</version>
 		</dependency>
 
+		<!-- https://mvnrepository.com/artifact/org.bytedeco/openblas-platform -->
+		<dependency>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>openblas-platform</artifactId>
+			<version>0.3.5-1.5</version>
+		</dependency>
+
+
 		<!-- Example:
 
 		<dependency>

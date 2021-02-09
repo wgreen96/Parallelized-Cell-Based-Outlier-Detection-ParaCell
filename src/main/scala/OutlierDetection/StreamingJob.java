@@ -13,22 +13,21 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
-        String dataset = "STK";
+        //String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
         String delimiter = ",";
-        String line_delimiter = "&";
         double radius = 5;
         int dimensions = 3;
         int partitions = 8;
-        long windowSize = 500;
-        long slideSize = 250;
+//        long windowSize = 500;
+//        long slideSize = 250;
+        long windowSize = 10000;
+        long slideSize = 500;
         int kNeighs = 50;
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(partitions);
-        StreamTableEnvironment tblEnv = StreamTableEnvironment.create(env);
 
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
         HypercubeGeneration.dimensions = dimensions;
@@ -39,10 +38,6 @@ public class StreamingJob {
 
         //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
         CellSummaryCreation.windowSize = windowSize;
-//        OutlierDetectionTheThird.lifeThreshold = windowSize;
-//        OutlierDetectionTheThird.kNeighs = kNeighs;
-//        OutlierDetectionTheThird.dimensions = dimensions;
-//        OutlierDetectionTheThird.radius = radius;
         OutlierDetectionTheFourth.windowSize = windowSize;
         OutlierDetectionTheFourth.slideSize = slideSize;
         OutlierDetectionTheFourth.kNeighs = kNeighs;

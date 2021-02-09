@@ -83,6 +83,22 @@
     <orderEntry type="library" name="Maven: com.github.haifengl:smile-data:2.6.0" level="project" />
     <orderEntry type="library" name="Maven: com.github.haifengl:smile-math:2.6.0" level="project" />
     <orderEntry type="library" name="Maven: com.github.haifengl:smile-graph:2.6.0" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas-platform:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:javacpp:1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:android-arm:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:android-arm64:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:android-x86:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:android-x86_64:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:ios-arm64:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:ios-x86_64:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:linux-x86:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:linux-x86_64:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:linux-armhf:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:linux-ppc64le:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:macosx-x86_64:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:windows-x86:0.3.5-1.5" level="project" />
+    <orderEntry type="library" name="Maven: org.bytedeco:openblas:windows-x86_64:0.3.5-1.5" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.slf4j:slf4j-log4j12:1.7.7" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: log4j:log4j:1.2.17" level="project" />
   </component>
