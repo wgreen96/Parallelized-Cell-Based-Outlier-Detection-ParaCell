@@ -1,7 +1,6 @@
 package OutlierDetection;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
@@ -17,7 +16,9 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
     Map<Double, Long> lastModification = new HashMap<>();
     Map<Double, ArrayList> setOfDataPoints = new HashMap<Double, ArrayList>();
     ArrayList<Hypercube> dataToBePruned = new ArrayList<>();
-    ArrayList<Double> sortedIDs = new ArrayList<Double>();
+    ArrayList<double[]> likelyOutliers = new ArrayList<>();
+    ArrayList<Double> uniqueKeys = new ArrayList<>();
+    Map<Double, ArrayList> hypercubeNeighs = new HashMap<>();
 
     static long windowSize;
     static long slideSize;
@@ -52,9 +53,6 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
                 Tuple2<Integer, double[]> hypercubeStateValue = new Tuple2<>(currHypCount, currHypMeanCoords);
                 hypercubeState.put(currHypID, hypercubeStateValue);
                 lastModification.put(currHypID, currTime);
-                //Created a sorted list of HypercubeIDs for faster Outlier Detection
-                sortedIDs.add(currHypID);
-                Collections.sort(sortedIDs);
             }else{
                 //Do error checking for out of order data points by only updating state if data point is newer
                 if(currTime > lastModification.get(currHypID)){
@@ -75,13 +73,14 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
 
             //Key data points by HypercubeID for easier extraction later
             ArrayList<double[]> newList;
-            if(!setOfDataPoints.containsKey(currPoints)){
+            if(!setOfDataPoints.containsKey(currHypID)){
                 newList = new ArrayList<>();
+
             }else{
-                newList = setOfDataPoints.get(currPoints.hypercubeID);
+                newList = setOfDataPoints.get(currHypID);
             }
-            newList.add(currPoints.centerOfCellCoords);
-            setOfDataPoints.put(currPoints.hypercubeID,newList);
+            newList.add(currPoints.coords);
+            setOfDataPoints.put(currHypID, newList);
 
             //Finally, check if data points will be pruned before the next slide
             if((currPoints.arrival + windowSize) < windowEndTime){
@@ -105,77 +104,106 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
                 int totalNeighborhoodCount = hypStateCount;
                 ArrayList<Double> setOfNeighs = new ArrayList<>();
 
-                //Compare ID of current Hypercube to the rest of hypercubes
-                for(Double currCubes: sortedIDs) {
-                    //Skip comparison to self
-                    if (currCubes == currHypID) {
-                        continue;
+                //If hypercubeNeighs state already exists, we know the neighbors. Do a simple loop and count for each
+                if(hypercubeNeighs.containsKey(currHypID)){
+                    ArrayList<Double> keyNeighs =  hypercubeNeighs.get(currHypID);
+                    for(double neighs: keyNeighs){
+                        int stateCount = (int) hypercubeState.get(neighs).f0;
+                        totalNeighborhoodCount += stateCount;
                     }
-
-                    Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(currCubes);
-                    double[] centerCoords2 = hypStateValue2.f1;
-
-                    double distance = 0;
-                    //Calculate distance function
-                    for(int currIndex = 0; currIndex < centerCoords.length; currIndex++){
-                        distance += Math.pow(centerCoords[currIndex] - centerCoords2[currIndex], 2);
-                    }
-                    distance = Math.sqrt(distance);
-                    double upperBound = distance + (radius/2);
-                    double lowerBound = distance - (radius/2);
-
-                    //If value + and - (diagonal/2) is less than radius, level 1
-                    if(upperBound < radius && lowerBound < radius){
-                        setOfNeighs.add(currCubes);
-                        int thisCellCount = hypStateValue2.f0;
-                        totalNeighborhoodCount += thisCellCount;
-                        if(totalNeighborhoodCount >= kNeighs){
-                            break;
+                }
+                //Else, need to loop through current set of hypercubes and create state
+                else{
+                    //Compare ID of current Hypercube to the rest of hypercubes
+                    for(Double currCubes: hypercubeState.keySet()) {
+                        //Skip comparison to self
+                        if (currCubes == currHypID) {
+                            continue;
                         }
-                    }
-                    //If one value is less than radius and the other is greater, level 2
-                    else if((upperBound > radius && lowerBound < radius) || (upperBound < radius && lowerBound > radius)){
-                        setOfNeighs.add(currCubes);
-                    }
-                    //If both are greater, cell is out of neighborhood
 
-                    System.out.println("CurrentID: " + currHypID);
-                    System.out.println("Compared ID: " + currCubes);
-                    System.out.println("Difference in 1st place: " + (centerCoords[0] - centerCoords2[0]));
-                    System.out.println("DIfference: " + distance);
+                        Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(currCubes);
+                        double[] centerCoords2 = hypStateValue2.f1;
+
+                        double distance = 0;
+                        //Calculate distance function
+                        for(int currIndex = 0; currIndex < centerCoords.length; currIndex++){
+                            distance += Math.pow(centerCoords[currIndex] - centerCoords2[currIndex], 2);
+                        }
+                        distance = Math.sqrt(distance);
+                        double upperBound = distance + (radius/2);
+                        double lowerBound = distance - (radius/2);
+
+                        //If value + and - (diagonal/2) is less than radius, level 1
+                        if(upperBound < radius && lowerBound < radius){
+                            //Get unique set of neighbors for LSH search
+                            if(!uniqueKeys.contains(currCubes)){
+                                uniqueKeys.add(currCubes);
+                            }
+                            setOfNeighs.add(currCubes);
+                            int thisCellCount = hypStateValue2.f0;
+                            totalNeighborhoodCount += thisCellCount;
+                            if(totalNeighborhoodCount >= kNeighs){
+                                break;
+                            }
+                        }
+                        //If one value is less than radius and the other is greater, level 2
+                        else if((upperBound > radius && lowerBound < radius) || (upperBound < radius && lowerBound > radius)){
+                            //Get unique set of neighbors for LSH search
+                            if(!uniqueKeys.contains(currCubes)){
+                                uniqueKeys.add(currCubes);
+                            }
+                            setOfNeighs.add(currCubes);
+                        }
+                        //If both are greater, cell is out of neighborhood
+
+                    }
+                    //Add setOfNeighs to hypercubeNeighs
+                    hypercubeNeighs.put(currHypID, setOfNeighs);
 
                 }
 
-                //Now we have compared level 1 neighbors. If that still isn't above k, need to get level 2 neighbors
-                if(totalNeighborhoodCount < kNeighs){
-                    //Start off by getting all data points from level 1 and 2 cells
-                    ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
-                    Vector<double[]> test = new Vector<>();
-                    for(Double currNeighs : setOfNeighs){
-                        setOfNeighPoints.addAll(setOfDataPoints.get(currNeighs));
-                        test.addAll(setOfDataPoints.get(currNeighs));
-                    }
-                    //Pass query (current data point) and neighbors to LSH
-                    double hashFunctions = Math.log(setOfNeighPoints.size());
-                    int LValue = 0;
-                    if(hashFunctions % 1 >= 0.5){
-                        LValue = (int) Math.ceil(hashFunctions);
-                    }else{
-                        LValue = (int) Math.floor(hashFunctions);
-                    }
-                    MPLSH LSH = new MPLSH(dimensions, LValue, 3, radius);
-
-
+                //If level 1 neighbors still isn't enough to reach k, add data point to list of data points that still need processing
+                if(totalNeighborhoodCount >= kNeighs){
+                    likelyOutliers.add(prunedData.coords);
                 }
-
             }
         }
 
-        //Modify states to reflect environment after data points have been pruned
+        if(likelyOutliers.size() > 0){
+            //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
+            //Start off by getting all neighbors for each likelyOutlier
+            ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
+            for(double theseNeighs : uniqueKeys){
+                setOfNeighPoints.addAll(setOfDataPoints.get(theseNeighs));
+            }
+            //Pass query (current data point) and neighbors to LSH
+            double hashFunctions = Math.log(setOfNeighPoints.size());
+            int KValue = 0;
+            if(hashFunctions % 1 >= 0.5){
+                KValue = (int) Math.ceil(hashFunctions);
+            }else{
+                KValue = (int) Math.floor(hashFunctions);
+            }
+            MPLSH LSH = new MPLSH(dimensions, 5, KValue, radius*4);
+            for(double[] training : setOfNeighPoints){
+                //System.out.println(training.toString());
+                LSH.put(training, training);
+            }
+            LSH.nearest(likelyOutliers.get(0));
+        }
+
+
+
+        //Clean up states to ensure the program does not get bogged down by traversing information like HypercubeStates that do not have any data points in the current window
         setOfDataPoints.clear();
         dataToBePruned.clear();
-        //Instead of running 2 for loops that do the same thing, have HyperOctantState be modifed at end of Outlier Loop
-        //Or atleast store that information so it can easily be modified instead of running the loop again
+        likelyOutliers.clear();
+        hypercubeNeighs.clear();
+        uniqueKeys.clear();
+        hypercubeState.clear();
+        hyperOctantState.clear();
+
+
 
 
     }
@@ -183,3 +211,5 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
 
 
 }
+
+

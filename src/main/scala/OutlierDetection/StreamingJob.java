@@ -13,8 +13,8 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        //String myInput = "/home/green/Documents/PROUD/data/TAO/input_20k.txt";
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
+        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
         String dataset = "STK";
         String delimiter = ",";
         String line_delimiter = "&";
@@ -76,7 +76,8 @@ public class StreamingJob {
 
         dataWithCellSummaries
                 .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                .process(new OutlierDetectionTheFourth());
+                .process(new OutlierDetectionTheFourth())
+                .setParallelism(1);
 
 
         env.execute("Java Streaming Job");
