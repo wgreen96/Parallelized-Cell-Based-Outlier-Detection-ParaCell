@@ -19,7 +19,7 @@ public class HypercubeGeneration {
     public static Hypercube createPartitions(Hypercube dataPoint){
         //Create data structure to store values that will become HypercubeID
         ArrayList<Double> multiplicationValues = new ArrayList<>();
-        double[] arrayOfMeans = new double[3];
+        double[] arrayOfMeans = new double[(int)dimensions];
         double[] arrayOfIDs = new double[(int)dimensions];
         //For each coordinate
         for(Double val : dataPoint.coords) {

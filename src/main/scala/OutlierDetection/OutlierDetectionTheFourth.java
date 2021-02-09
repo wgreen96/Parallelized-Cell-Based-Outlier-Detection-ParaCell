@@ -93,7 +93,6 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
 
         }
 
-        //Run Outlier Detection on data about to be pruned
         for(Hypercube prunedData : dataToBePruned){
 
             double currHypID = prunedData.hypercubeID;
@@ -169,6 +168,7 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
 
                 }
 
+
                 //If level 1 neighbors still isn't enough to reach k, add data point to list of data points that still need processing
                 if(level1NeighborhoodCount < kNeighs){
                     //If the total neighborhood, 1 and 2, is less than kNeighs then it is guarenteed to be an Outlier
@@ -181,7 +181,9 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
                 }
             }
         }
+        //System.out.println("Outliers part1 : " + outliers.size());
 
+        //System.out.println("LIKELY OUTLIERS: " + likelyOutliers.size());
         if(likelyOutliers.size() > 0){
             //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
             //Start off by getting all neighbors for each likelyOutlier
@@ -197,7 +199,7 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
             }else{
                 KValue = (int) Math.floor(hashFunctions);
             }
-            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius*4);
+            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
             for(double[] training : setOfNeighPoints){
                 LSH.put(training, training);
             }
@@ -223,9 +225,11 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
         hypercubeState.clear();
         hyperOctantState.clear();
 
-        System.out.println(cpuTime);
-        System.out.println(numberIterations);
-        System.out.println(cpuTime/numberIterations);
+//        System.out.println(cpuTime);
+//        System.out.println(numberIterations);
+        //System.out.println("Average time: " + (cpuTime/numberIterations));
+        //System.out.println("NUM OUTLIERS: " + outliers.size());
+        //System.out.println("Outliers part2 : " + outliers.size());
 
     }
 }

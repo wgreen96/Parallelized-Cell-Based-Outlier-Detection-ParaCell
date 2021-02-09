@@ -13,17 +13,18 @@ public class StreamingJob {
 
     public static void main(String[] args) throws Exception {
 
-        //String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
         String delimiter = ",";
-        double radius = 5;
-        int dimensions = 3;
         int partitions = 8;
-//        long windowSize = 500;
-//        long slideSize = 250;
-        long windowSize = 10000;
-        long slideSize = 500;
+        long windowSize = 5000;
+        long slideSize = 250;
         int kNeighs = 50;
+        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
+        //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+        double radius = 1.9;
+        int dimensions = 3;
+//        double radius = 34;
+//        int dimensions = 10;
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
