@@ -104,7 +104,7 @@ public class Hypercube implements Serializable {
     public String coordsToString(){
         String coordString = "";
         for(double coorVals : this.coords){
-            coordString += Double.toString(coorVals) + ", ";
+            coordString += Double.toString(coorVals) + ",";
         }
         return coordString;
     }
@@ -127,11 +127,15 @@ public class Hypercube implements Serializable {
 //                ", Mean coords: " + this.meansToString();
 //    }
 
+//    public String toString() {
+//        return "Coords: " + this.coordsToString() +
+//                ", Arrival: " + this.arrival +
+//                ", HypercubeID: " + this.hypercubeID +
+//                ", HypercubeCount: " + this.hypercubeCount;
+//    }
+
     public String toString() {
-        return "Coords: " + this.coordsToString() +
-                ", Arrival: " + this.arrival +
-                ", HypercubeID: " + this.hypercubeID +
-                ", HypercubeCount: " + this.hypercubeCount;
+        return this.coordsToString();
     }
 
 

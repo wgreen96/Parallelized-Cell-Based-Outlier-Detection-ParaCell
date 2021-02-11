@@ -1,8 +1,11 @@
 package OutlierDetection;
 
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -70,9 +73,14 @@ public class StreamingJob {
                         .keyBy(Hypercube::getKey)
                         .process(new CellSummaryCreation());
 
-        dataWithCellSummaries
-                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                .process(new OutlierDetectionTheFourth())
+        DataStream<Hypercube> outliers =
+            dataWithCellSummaries
+                    .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                    .process(new OutlierDetectionTheFourth())
+                    .setParallelism(1);
+
+        outliers
+                .writeAsText("/home/green/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
 
 
