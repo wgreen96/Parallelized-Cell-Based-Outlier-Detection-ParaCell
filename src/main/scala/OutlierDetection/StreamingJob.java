@@ -20,7 +20,7 @@ public class StreamingJob {
         int partitions = 8;
         long windowSize = 5000;
         long slideSize = 250;
-        int kNeighs = 50;
+        int minPts = 50;
         String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
         //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
         //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
@@ -44,7 +44,7 @@ public class StreamingJob {
         CellSummaryCreation.windowSize = windowSize;
         OutlierDetectionTheFourth.windowSize = windowSize;
         OutlierDetectionTheFourth.slideSize = slideSize;
-        OutlierDetectionTheFourth.kNeighs = kNeighs;
+        OutlierDetectionTheFourth.minPts = minPts;
         OutlierDetectionTheFourth.dimensions = dimensions;
         OutlierDetectionTheFourth.radius = radius;
 
