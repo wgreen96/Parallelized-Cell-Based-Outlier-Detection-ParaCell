@@ -6,8 +6,6 @@ import java.util.ArrayList;
 public class HypercubeGeneration {
 
     static double dimensions;
-    static double radius;
-    static double diagonal;
     static double hypercubeSide;
     static int partitions;
 

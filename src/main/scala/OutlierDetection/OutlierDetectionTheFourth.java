@@ -20,14 +20,14 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
     ArrayList<Double> uniqueKeys = new ArrayList<>();
     Map<Double, Tuple2> hypercubeNeighs = new HashMap<>();
 
-    static long windowSize;
+
     static long slideSize;
     static int minPts;
     static int dimensions;
     static double radius;
     long cpuTime = 0L;
     double numberIterations = 0;
-
+    int iterCount = 0;
 
     @Override
     public void process(Context context,
@@ -85,6 +85,7 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
             newList.add(currPoints.coords);
             setOfDataPoints.put(currHypID, newList);
 
+            //Finally, collect the list of data points to be pruned
             if((currPoints.arrival + slideSize) > windowEndTime){
                 potentialOutliers.add(currPoints);
             }
@@ -123,6 +124,7 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
                 else{
                     //Compare ID of current Hypercube to the rest of hypercubes
                     for(Double currCubes: hypercubeState.keySet()) {
+                        iterCount++;
                         //Skip comparison to self
                         if (currCubes == currHypID) {
                             continue;
@@ -172,6 +174,7 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
                 //If level 1 neighbors still isn't enough to reach k, add data point to list of data points that still need processing
                 if(level1NeighborhoodCount < minPts){
                     //If the total neighborhood, level 1 and 2, is less than minPts then it is guaranteed to be an outlier so no further processing is needed
+                    //TODO IF THIS IS EVER USED AGAIN, FIX THIS. TOTALNEIGHBORHOOD IS ALWAYS 0 FOR HYPERCUBES THAT HAVNT BEEN CHECKED BEFORE
                     if(totalNeighborhoodCount < minPts){
                         //Remove data point because it is guaranteed to be an outlier
                         potentialOutliers.remove(prunedData);
@@ -188,34 +191,34 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
         }
 
 
-        //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
-        if(potentialOutliers.size() > 0){
-            //Start off by getting all neighbors for each likelyOutlier
-            ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
-            for(double theseNeighs : uniqueKeys){
-                setOfNeighPoints.addAll(setOfDataPoints.get(theseNeighs));
-            }
-            //Pass query (current data point) and neighbors to LSH
-            double hashFunctions = Math.log(setOfNeighPoints.size());
-            int KValue;
-            if(hashFunctions % 1 >= 0.5){
-                KValue = (int) Math.ceil(hashFunctions);
-            }else{
-                KValue = (int) Math.floor(hashFunctions);
-            }
-            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
-            for(double[] training : setOfNeighPoints){
-                LSH.put(training, training);
-            }
-
-            for(Hypercube hypercubePoint : potentialOutliers){
-                double[] potentialOutliers = hypercubePoint.coords;
-                Neighbor[] approxNeighbors = LSH.knn(potentialOutliers, minPts);
-                if(approxNeighbors.length < minPts){
-                    collector.collect(hypercubePoint);
-                }
-            }
-        }
+//        //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
+//        if(potentialOutliers.size() > 0){
+//            //Start off by getting all neighbors for each likelyOutlier
+//            ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
+//            for(double theseNeighs : uniqueKeys){
+//                setOfNeighPoints.addAll(setOfDataPoints.get(theseNeighs));
+//            }
+//            //Pass query (current data point) and neighbors to LSH
+//            double hashFunctions = Math.log(setOfNeighPoints.size());
+//            int KValue;
+//            if(hashFunctions % 1 >= 0.5){
+//                KValue = (int) Math.ceil(hashFunctions);
+//            }else{
+//                KValue = (int) Math.floor(hashFunctions);
+//            }
+//            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
+//            for(double[] training : setOfNeighPoints){
+//                LSH.put(training, training);
+//            }
+//
+//            for(Hypercube hypercubePoint : potentialOutliers){
+//                double[] potentialOutliers = hypercubePoint.coords;
+//                Neighbor[] approxNeighbors = LSH.knn(potentialOutliers, minPts);
+//                if(approxNeighbors.length < minPts){
+//                    collector.collect(hypercubePoint);
+//                }
+//            }
+//        }
 
         long time_final = System.currentTimeMillis();
         cpuTime += (time_final - time_init);
@@ -229,6 +232,7 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
         hypercubeState.clear();
         hyperOctantState.clear();
 
+        System.out.println(iterCount);
 
 //        System.out.println(cpuTime);
 //        System.out.println(numberIterations);
@@ -238,6 +242,24 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
 
     }
 }
+
+
+//        System.out.println(sortedMeans.size());
+//        if(sortedMeans.size() > 1000){
+//            for(double[] thisarr : sortedMeans){
+//                System.out.println(Arrays.toString(thisarr));
+//            }
+//            System.exit(0);
+//        }
+
+//        ArrayList<double[]> sortedMeans = new ArrayList<>();
+//        for(double currID : hypercubeState.keySet()){
+//            Tuple2<Integer, double[]> hypState = hypercubeState.get(currID);
+//            double[] centerCoo = hypState.f1;
+//            sortedMeans.add(centerCoo);
+//        }
+//        Collections.sort(sortedMeans, new CustomComparator());
+
 
 
 //        if(likelyOutliers.size() > 0) {
@@ -262,20 +284,3 @@ public class OutlierDetectionTheFourth extends ProcessAllWindowFunction<Hypercub
 //            }
 //        }
 
-
-//            if(currTime < windowStartTime || currTime > windowEndTime){
-//                //System.out.println(currTime);
-//                //System.out.println(windowStartTime + ", " + windowEndTime + ", " + time_init);
-//                //System.out.println(currTime);
-//                System.out.println("SHOULDNT HAPPEN");
-//                System.out.println((currTime - windowStartTime) + ", " + (windowEndTime - currTime));
-//
-//            }else{
-//                System.out.println("SHOULD HAPPEN");
-//                System.out.println((currTime - windowStartTime) + ", " + (windowEndTime - currTime));
-//            }
-//            if(currTime > windowEndTime){
-//                //System.out.println("SHOULDNT HAPPEN");
-//                counts++;
-//                System.out.println(counts);
-//            }

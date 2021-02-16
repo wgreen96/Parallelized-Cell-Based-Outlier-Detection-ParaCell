@@ -18,16 +18,22 @@ public class StreamingJob {
 
         String delimiter = ",";
         int partitions = 8;
-        long windowSize = 5000;
-        long slideSize = 250;
+        long windowSize = 10000;
+        long slideSize = 500;
         int minPts = 50;
-        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
-        //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+
+        int dimWithLargeestRangeOfValues = 2;
         double radius = 1.9;
         int dimensions = 3;
+        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
+        //String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+
 //        double radius = 34;
 //        int dimensions = 10;
+//        int dimWithLargeestRangeOfValues = 10;
+        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
+        //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+        double hypercubeSide = (radius/2) / Math.sqrt(dimensions);
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -35,18 +41,19 @@ public class StreamingJob {
 
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
         HypercubeGeneration.dimensions = dimensions;
-        HypercubeGeneration.radius = radius;
-        HypercubeGeneration.diagonal = radius / 2;
-        HypercubeGeneration.hypercubeSide = HypercubeGeneration.diagonal / Math.sqrt(dimensions);
+        HypercubeGeneration.hypercubeSide = hypercubeSide;
         HypercubeGeneration.partitions = partitions;
-
-        //lifeThreshold (milliseconds) is the amount of time before a data point is pruned.
         CellSummaryCreation.windowSize = windowSize;
-        OutlierDetectionTheFourth.windowSize = windowSize;
         OutlierDetectionTheFourth.slideSize = slideSize;
         OutlierDetectionTheFourth.minPts = minPts;
         OutlierDetectionTheFourth.dimensions = dimensions;
         OutlierDetectionTheFourth.radius = radius;
+        OutlierDetectionTheFifth.slideSize = slideSize;
+        OutlierDetectionTheFifth.minPts = minPts;
+        OutlierDetectionTheFifth.dimensions = dimensions;
+        OutlierDetectionTheFifth.radius = radius;
+        OutlierDetectionTheFifth.hypercubeSide = hypercubeSide;
+        OutlierDetectionTheFifth.dimWithHighRange = dimWithLargeestRangeOfValues;
 
 
         //Create DataStream using a source
@@ -73,15 +80,18 @@ public class StreamingJob {
                         .keyBy(Hypercube::getKey)
                         .process(new CellSummaryCreation());
 
+
+
         DataStream<Hypercube> outliers =
             dataWithCellSummaries
                     .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                    .process(new OutlierDetectionTheFourth())
+                    .process(new OutlierDetectionTheFifth())
                     .setParallelism(1);
 
         outliers
-                .writeAsText("/home/green/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE)
+                .writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
+
 
 
         env.execute("Java Streaming Job");
