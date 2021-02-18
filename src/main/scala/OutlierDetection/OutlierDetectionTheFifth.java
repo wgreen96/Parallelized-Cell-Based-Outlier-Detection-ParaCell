@@ -14,9 +14,12 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
 
     Map<Double, Tuple2> hypercubeState = new HashMap<>();
     Map<Double, Long> lastModification = new HashMap<>();
+    //Can be deleted
     Map<Double, ArrayList> setOfDataPoints = new HashMap<>();
     ArrayList<Hypercube> potentialOutliers = new ArrayList<>();
+    //Can be deleted
     ArrayList<Double> uniqueKeys = new ArrayList<>();
+    //May be used for searching gaurenteed L1 neighbors otherwise can be deleted
     Map<Double, Tuple2> hypercubeNeighs = new HashMap<>();
     ArrayList<double[]> setOfMeanCoords = new ArrayList<>();
 

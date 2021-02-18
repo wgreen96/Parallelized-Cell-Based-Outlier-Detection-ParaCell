@@ -68,104 +68,129 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
         }
 
         //Sort setOfMeanCoords by the dimension in dimWithHighRange
-        Collections.sort(setOfMeanCoords, Comparator.comparingDouble(coord -> coord.get(dimWithHighRange - 1)));
-
-        System.out.println("SIZE: " + potentialOutliers.size());
-        //Run outlier detection on the data points that will be pruned after this window is processed
-        //This is going backwards because data points are being removed and doing so while going forwards breaks everything
-        for(int pruneIndex = potentialOutliers.size() - 1; pruneIndex >= 0; pruneIndex--){
-
-            Hypercube prunedData = potentialOutliers.get(pruneIndex);
-            double currHypID = prunedData.hypercubeID;
-            Tuple2<Integer, ArrayList<Double>> hypStateValue = hypercubeState.get(currHypID);
-            int hypStateCount = hypStateValue.f0;
-            ArrayList<Double> centerCoords = hypStateValue.f1;
-            int level1NeighborhoodCount = 0;
-            int totalNeighborhoodCount = 0;
-
-            if(hypStateCount < minPts){
-
-                //Binary search for meanCoords.dimWithHighRange within range currHyp.dimWithHighRange +- rangeOfVals
-                int key = Collections.binarySearch(setOfMeanCoords, centerCoords, (cell1, cell2) -> {
-                    if(cell1.get(dimWithHighRange - 1) < (cell2.get(dimWithHighRange - 1) - rangeOfVals)){
+        Collections.sort(setOfMeanCoords, new Comparator<ArrayList<Double>>() {
+            @Override
+            public int compare(ArrayList<Double> cell1, ArrayList<Double> cell2) {
+                if (cell1.get(dimWithHighRange - 1) < cell2.get(dimWithHighRange - 1)) {
+                    return -1;
+                } else if (cell1.get(dimWithHighRange - 1) > cell2.get(dimWithHighRange - 1)) {
+                    return 1;
+                } else {
+                    //If they are equal, compare count in Cell
+                    if(cell1.get(dimensions) < cell2.get(dimensions)){
                         return -1;
                     }
-                    else if(cell1.get(dimWithHighRange - 1) > (cell2.get(dimWithHighRange - 1) + rangeOfVals)){
+                    else if(cell1.get(dimensions) > cell2.get(dimensions)){
                         return 1;
                     }else{
                         return 0;
                     }
-                });
-
-                //Now start with given key and search upwards
-                for(int upIndex = key; upIndex < setOfMeanCoords.size(); upIndex++){
-
-                    ArrayList<Double> nextCoord = setOfMeanCoords.get(upIndex);
-                    //Continue searching until we have left the acceptable range of values
-                    if(Math.abs(centerCoords.get(dimWithHighRange - 1) - nextCoord.get(dimWithHighRange - 1)) > rangeOfVals){
-                        break;
-                    }else{
-                        //Calculate distance and return neighborhood level
-                        int cellLevel = determineNeighborhoodLevel(centerCoords, setOfMeanCoords.get(upIndex));
-                        if(cellLevel == 1){
-                            //Recreate hypercubeID and get its state values
-                            double nextCoordID = recreateHypercubeID(nextCoord);
-                            Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                            //Add count from level 1 cell to level1NeighborhoodCount
-                            level1NeighborhoodCount += hypStateValue2.f0;
-                            totalNeighborhoodCount += hypStateValue2.f0;
-                            if(level1NeighborhoodCount >= minPts){
-                                potentialOutliers.remove(prunedData);
-                                break;
-                            }
-                        }else if(cellLevel == 2){
-                            double nextCoordID = recreateHypercubeID(nextCoord);
-                            Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                            //Get unique set of neighbors for LSH search
-                            totalNeighborhoodCount += hypStateValue2.f0;
-                        }
-                    }
                 }
-                //If the current point still doesn't have minimum neighbors, start searching down
-                if(level1NeighborhoodCount < minPts){
-                    //Step below given key and search down
-                    for(int downIndex = (key-1); downIndex > 0; downIndex--){
-
-                        ArrayList<Double> nextCoord = setOfMeanCoords.get(downIndex);
-                        //Continue searching until we have left the acceptable range of values
-                        if(Math.abs(centerCoords.get(dimWithHighRange - 1) - nextCoord.get(dimWithHighRange - 1)) > rangeOfVals){
-                            break;
-                        }else{
-                            //Calculate distance and return neighborhood level
-                            int cellLevel = determineNeighborhoodLevel(centerCoords, setOfMeanCoords.get(downIndex));
-                            if(cellLevel == 1){
-                                //Recreate hypercubeID and get its state values
-                                double nextCoordID = recreateHypercubeID(nextCoord);
-                                Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                                //Add count from level 1 cell to level1NeighborhoodCount
-                                level1NeighborhoodCount += hypStateValue2.f0;
-                                totalNeighborhoodCount += hypStateValue2.f0;
-                                if(level1NeighborhoodCount >= minPts){
-                                    potentialOutliers.remove(prunedData);
-                                    break;
-                                }
-                            }else if(cellLevel == 2){
-                                double nextCoordID = recreateHypercubeID(nextCoord);
-                                Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                                totalNeighborhoodCount += hypStateValue2.f0;
-                            }
-                        }
-                    }
-                }
-                //If less than minPts is in all level 1 and 2 cells, the data point is guaranteed to be an outlier
-                if(totalNeighborhoodCount < minPts){
-                    potentialOutliers.remove(prunedData);
-                    collector.collect(prunedData);
-                }
-            }else{
-                potentialOutliers.remove(prunedData);
             }
+        });
+
+        for(ArrayList<Double> tempVals : setOfMeanCoords){
+            System.out.println(tempVals.toString());
         }
+        System.exit(0);
+
+
+//        System.out.println("SIZE: " + potentialOutliers.size());
+//        //Run outlier detection on the data points that will be pruned after this window is processed
+//        //This is going backwards because data points are being removed and doing so while going forwards breaks everything
+//        for(int pruneIndex = potentialOutliers.size() - 1; pruneIndex >= 0; pruneIndex--){
+//
+//            Hypercube prunedData = potentialOutliers.get(pruneIndex);
+//            double currHypID = prunedData.hypercubeID;
+//            Tuple2<Integer, ArrayList<Double>> hypStateValue = hypercubeState.get(currHypID);
+//            int hypStateCount = hypStateValue.f0;
+//            ArrayList<Double> centerCoords = hypStateValue.f1;
+//            int level1NeighborhoodCount = 0;
+//            int totalNeighborhoodCount = 0;
+//
+//            if(hypStateCount < minPts){
+//
+//                //Binary search for meanCoords.dimWithHighRange within range currHyp.dimWithHighRange +- rangeOfVals
+//                int key = Collections.binarySearch(setOfMeanCoords, centerCoords, (cell1, cell2) -> {
+//                    if(cell1.get(dimWithHighRange - 1) < (cell2.get(dimWithHighRange - 1) - rangeOfVals)){
+//                        return -1;
+//                    }
+//                    else if(cell1.get(dimWithHighRange - 1) > (cell2.get(dimWithHighRange - 1) + rangeOfVals)){
+//                        return 1;
+//                    }else{
+//                        return 0;
+//                    }
+//                });
+//
+//                //Now start with given key and search upwards
+//                for(int upIndex = key; upIndex < setOfMeanCoords.size(); upIndex++){
+//
+//                    ArrayList<Double> nextCoord = setOfMeanCoords.get(upIndex);
+//                    //Continue searching until we have left the acceptable range of values
+//                    if(Math.abs(centerCoords.get(dimWithHighRange - 1) - nextCoord.get(dimWithHighRange - 1)) > rangeOfVals){
+//                        break;
+//                    }else{
+//                        //Calculate distance and return neighborhood level
+//                        int cellLevel = determineNeighborhoodLevel(centerCoords, setOfMeanCoords.get(upIndex));
+//                        if(cellLevel == 1){
+//                            //Recreate hypercubeID and get its state values
+//                            double nextCoordID = recreateHypercubeID(nextCoord);
+//                            Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
+//                            //Add count from level 1 cell to level1NeighborhoodCount
+//                            level1NeighborhoodCount += hypStateValue2.f0;
+//                            totalNeighborhoodCount += hypStateValue2.f0;
+//                            if(level1NeighborhoodCount >= minPts){
+//                                potentialOutliers.remove(prunedData);
+//                                break;
+//                            }
+//                        }else if(cellLevel == 2){
+//                            double nextCoordID = recreateHypercubeID(nextCoord);
+//                            Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
+//                            //Get unique set of neighbors for LSH search
+//                            totalNeighborhoodCount += hypStateValue2.f0;
+//                        }
+//                    }
+//                }
+//                //If the current point still doesn't have minimum neighbors, start searching down
+//                if(level1NeighborhoodCount < minPts){
+//                    //Step below given key and search down
+//                    for(int downIndex = (key-1); downIndex > 0; downIndex--){
+//
+//                        ArrayList<Double> nextCoord = setOfMeanCoords.get(downIndex);
+//                        //Continue searching until we have left the acceptable range of values
+//                        if(Math.abs(centerCoords.get(dimWithHighRange - 1) - nextCoord.get(dimWithHighRange - 1)) > rangeOfVals){
+//                            break;
+//                        }else{
+//                            //Calculate distance and return neighborhood level
+//                            int cellLevel = determineNeighborhoodLevel(centerCoords, setOfMeanCoords.get(downIndex));
+//                            if(cellLevel == 1){
+//                                //Recreate hypercubeID and get its state values
+//                                double nextCoordID = recreateHypercubeID(nextCoord);
+//                                Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
+//                                //Add count from level 1 cell to level1NeighborhoodCount
+//                                level1NeighborhoodCount += hypStateValue2.f0;
+//                                totalNeighborhoodCount += hypStateValue2.f0;
+//                                if(level1NeighborhoodCount >= minPts){
+//                                    potentialOutliers.remove(prunedData);
+//                                    break;
+//                                }
+//                            }else if(cellLevel == 2){
+//                                double nextCoordID = recreateHypercubeID(nextCoord);
+//                                Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
+//                                totalNeighborhoodCount += hypStateValue2.f0;
+//                            }
+//                        }
+//                    }
+//                }
+//                //If less than minPts is in all level 1 and 2 cells, the data point is guaranteed to be an outlier
+//                if(totalNeighborhoodCount < minPts){
+//                    potentialOutliers.remove(prunedData);
+//                    collector.collect(prunedData);
+//                }
+//            }else{
+//                potentialOutliers.remove(prunedData);
+//            }
+//        }
 
 
 

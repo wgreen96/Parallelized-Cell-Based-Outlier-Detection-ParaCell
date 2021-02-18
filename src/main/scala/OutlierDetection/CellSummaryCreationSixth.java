@@ -98,6 +98,8 @@ public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hype
         ArrayList<Double> centerCoordsWithCount = currPoint.getCenterOfCellCoords();
         centerCoordsWithCount.add(currState.f0.doubleValue());
 
+        System.out.println(currState.f0.doubleValue());
+
         //System.out.println("Current ID: " + currHypID + ", Current Time: " + currState.f1);
 
         //Return state with HypercubeID, count to be processed by OutlierDetection function
