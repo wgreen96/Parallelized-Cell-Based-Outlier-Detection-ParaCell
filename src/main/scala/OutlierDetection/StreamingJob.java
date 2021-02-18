@@ -23,16 +23,16 @@ public class StreamingJob {
         long slideSize = 500;
         int minPts = 50;
 
-//        int dimWithLargeestRangeOfValues = 2;
-//        double radius = 1.9;
-//        int dimensions = 3;
+        int dimWithLargeestRangeOfValues = 2;
+        double radius = 1.9;
+        int dimensions = 3;
         //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
-        //String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
 
-        double radius = 34;
-        int dimensions = 10;
-        int dimWithLargeestRangeOfValues = 10;
-        String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
+//        double radius = 34;
+//        int dimensions = 10;
+//        int dimWithLargeestRangeOfValues = 10;
+////        String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
 //        String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
 
 //        double radius = 34;
@@ -53,11 +53,13 @@ public class StreamingJob {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(partitions);
 
+        //TOOD How can I make this automatic? This has screwed me over too many times now to be left as hardcode
         //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
         HypercubeGeneration.dimensions = dimensions;
         HypercubeGeneration.hypercubeSide = hypercubeSide;
         HypercubeGeneration.partitions = partitions;
-        CellSummaryCreation.windowSize = windowSize;
+//        CellSummaryCreation.windowSize = windowSize;
+        CellSummaryCreationSixth.windowSize = windowSize;
 //        OutlierDetectionTheFourth.slideSize = slideSize;
 //        OutlierDetectionTheFourth.minPts = minPts;
 //        OutlierDetectionTheFourth.dimensions = dimensions;

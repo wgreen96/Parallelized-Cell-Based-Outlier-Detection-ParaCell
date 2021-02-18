@@ -57,6 +57,7 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
                     Tuple2<Integer, ArrayList<Double>> hypercubeStateValue = new Tuple2<>(currHypCount, currPoints.centerOfCellCoords);
                     hypercubeState.put(currHypID, hypercubeStateValue);
                     lastModification.put(currHypID, currTime);
+                    setOfMeanCoords.add(currPoints.centerOfCellCoords);
                 }
             }
 
@@ -92,7 +93,7 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
         for(ArrayList<Double> tempVals : setOfMeanCoords){
             System.out.println(tempVals.toString());
         }
-        System.exit(0);
+
 
 
 //        System.out.println("SIZE: " + potentialOutliers.size());
