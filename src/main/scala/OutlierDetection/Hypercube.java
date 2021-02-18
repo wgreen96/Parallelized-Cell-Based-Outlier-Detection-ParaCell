@@ -1,6 +1,9 @@
 package OutlierDetection;
 
+import akka.remote.WireFormats;
+
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Comparator;
 
 public class Hypercube implements Serializable {
@@ -11,7 +14,7 @@ public class Hypercube implements Serializable {
     public double hyperoctantID;
     public int partitionID;
     public int hypercubeCount;
-    public double[] centerOfCellCoords;
+    public ArrayList<Double> centerOfCellCoords;
 
     public Hypercube(){
 
@@ -22,7 +25,7 @@ public class Hypercube implements Serializable {
         this.arrival = timeOfArrival;
     }
 
-    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, double[] means){
+    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, ArrayList<Double> means){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
@@ -31,7 +34,7 @@ public class Hypercube implements Serializable {
         this.centerOfCellCoords = means;
     }
 
-    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, double[] means, int hypcubeCnt){
+    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, ArrayList<Double> means, int hypcubeCnt){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
@@ -90,11 +93,11 @@ public class Hypercube implements Serializable {
         this.hypercubeCount = hypercubeCount;
     }
 
-    public double[] getCenterOfCellCoords() {
+    public ArrayList<Double> getCenterOfCellCoords() {
         return centerOfCellCoords;
     }
 
-    public void setCenterOfCellCoords(double[] centerOfCellCoords) {
+    public void setCenterOfCellCoords(ArrayList<Double> centerOfCellCoords) {
         this.centerOfCellCoords = centerOfCellCoords;
     }
 

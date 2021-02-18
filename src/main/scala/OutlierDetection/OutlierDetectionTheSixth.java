@@ -9,16 +9,13 @@ import smile.neighbor.Neighbor;
 
 import java.util.*;
 
-public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube, Hypercube, TimeWindow> {
+public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube, Hypercube, TimeWindow> {
 
 
     Map<Double, Tuple2> hypercubeState = new HashMap<>();
     Map<Double, Long> lastModification = new HashMap<>();
-    Map<Double, ArrayList> setOfDataPoints = new HashMap<>();
     ArrayList<Hypercube> potentialOutliers = new ArrayList<>();
-    ArrayList<Double> uniqueKeys = new ArrayList<>();
-    Map<Double, Tuple2> hypercubeNeighs = new HashMap<>();
-    ArrayList<double[]> setOfMeanCoords = new ArrayList<>();
+    ArrayList<ArrayList<Double>> setOfMeanCoords = new ArrayList<>();
 
     static long slideSize;
     static int minPts;
@@ -43,47 +40,25 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
         for(Hypercube currPoints: windowPoints){
 
             double currHypID = currPoints.hypercubeID;
-            double currHypOctID = currPoints.hyperoctantID;
             long currTime = currPoints.arrival;
             int currHypCount = currPoints.hypercubeCount;
-            double[] currHypMeanCoords = new double[dimensions];
-            int indexCounter = 0;
-            for(double vals : currPoints.centerOfCellCoords){
-                if(indexCounter == dimensions){
-
-                }else{
-                    currHypMeanCoords[indexCounter] = vals;
-                    indexCounter++;
-                }
-            }
 
 
             //Check if the state is new
             if(!hypercubeState.containsKey(currHypID)){
                 //If new, create entry for HypercubeState, lastModified, and setOfMeanCoords
-                Tuple2<Integer, double[]> hypercubeStateValue = new Tuple2<>(currHypCount, currHypMeanCoords);
+                Tuple2<Integer, ArrayList<Double>> hypercubeStateValue = new Tuple2<>(currHypCount, currPoints.centerOfCellCoords);
                 hypercubeState.put(currHypID, hypercubeStateValue);
                 lastModification.put(currHypID, currTime);
-                setOfMeanCoords.add(currHypMeanCoords);
+                setOfMeanCoords.add(currPoints.centerOfCellCoords);
             }else{
                 //Do error checking for out of order data points by only updating state if data point is newer
                 if(currTime > lastModification.get(currHypID)){
-                    Tuple2<Integer, double[]> hypercubeStateValue = new Tuple2<>(currHypCount, currHypMeanCoords);
+                    Tuple2<Integer, ArrayList<Double>> hypercubeStateValue = new Tuple2<>(currHypCount, currPoints.centerOfCellCoords);
                     hypercubeState.put(currHypID, hypercubeStateValue);
                     lastModification.put(currHypID, currTime);
                 }
             }
-
-            //Key data points by HypercubeID for easier extraction later
-            ArrayList<double[]> newList;
-            if(!setOfDataPoints.containsKey(currHypID)){
-                newList = new ArrayList<>();
-
-            }else{
-                newList = setOfDataPoints.get(currHypID);
-            }
-            newList.add(currPoints.coords);
-            setOfDataPoints.put(currHypID, newList);
 
             //Finally, collect the list of data points to be pruned
             if((currPoints.arrival + slideSize) > windowEndTime){
@@ -93,7 +68,7 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
         }
 
         //Sort setOfMeanCoords by the dimension in dimWithHighRange
-        Collections.sort(setOfMeanCoords, Comparator.comparingDouble(coord -> coord[dimWithHighRange - 1]));
+        Collections.sort(setOfMeanCoords, Comparator.comparingDouble(coord -> coord.get(dimWithHighRange - 1)));
 
         System.out.println("SIZE: " + potentialOutliers.size());
         //Run outlier detection on the data points that will be pruned after this window is processed
@@ -102,9 +77,9 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
 
             Hypercube prunedData = potentialOutliers.get(pruneIndex);
             double currHypID = prunedData.hypercubeID;
-            Tuple2<Integer, double[]> hypStateValue = hypercubeState.get(currHypID);
+            Tuple2<Integer, ArrayList<Double>> hypStateValue = hypercubeState.get(currHypID);
             int hypStateCount = hypStateValue.f0;
-            double[] centerCoords = hypStateValue.f1;
+            ArrayList<Double> centerCoords = hypStateValue.f1;
             int level1NeighborhoodCount = 0;
             int totalNeighborhoodCount = 0;
 
@@ -112,10 +87,10 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
 
                 //Binary search for meanCoords.dimWithHighRange within range currHyp.dimWithHighRange +- rangeOfVals
                 int key = Collections.binarySearch(setOfMeanCoords, centerCoords, (cell1, cell2) -> {
-                    if(cell1[dimWithHighRange-1] < (cell2[dimWithHighRange-1] - rangeOfVals)){
+                    if(cell1.get(dimWithHighRange - 1) < (cell2.get(dimWithHighRange - 1) - rangeOfVals)){
                         return -1;
                     }
-                    else if(cell1[dimWithHighRange-1] > (cell2[dimWithHighRange-1] + rangeOfVals)){
+                    else if(cell1.get(dimWithHighRange - 1) > (cell2.get(dimWithHighRange - 1) + rangeOfVals)){
                         return 1;
                     }else{
                         return 0;
@@ -125,9 +100,9 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
                 //Now start with given key and search upwards
                 for(int upIndex = key; upIndex < setOfMeanCoords.size(); upIndex++){
 
-                    double[] nextCoord = setOfMeanCoords.get(upIndex);
+                    ArrayList<Double> nextCoord = setOfMeanCoords.get(upIndex);
                     //Continue searching until we have left the acceptable range of values
-                    if(Math.abs(centerCoords[dimWithHighRange-1] - nextCoord[dimWithHighRange-1]) > rangeOfVals){
+                    if(Math.abs(centerCoords.get(dimWithHighRange - 1) - nextCoord.get(dimWithHighRange - 1)) > rangeOfVals){
                         break;
                     }else{
                         //Calculate distance and return neighborhood level
@@ -136,10 +111,6 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
                             //Recreate hypercubeID and get its state values
                             double nextCoordID = recreateHypercubeID(nextCoord);
                             Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                            //Get unique set of neighbors for LSH search
-                            if(!uniqueKeys.contains(nextCoordID)){
-                                uniqueKeys.add(nextCoordID);
-                            }
                             //Add count from level 1 cell to level1NeighborhoodCount
                             level1NeighborhoodCount += hypStateValue2.f0;
                             totalNeighborhoodCount += hypStateValue2.f0;
@@ -151,9 +122,6 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
                             double nextCoordID = recreateHypercubeID(nextCoord);
                             Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
                             //Get unique set of neighbors for LSH search
-                            if(!uniqueKeys.contains(nextCoordID)){
-                                uniqueKeys.add(nextCoordID);
-                            }
                             totalNeighborhoodCount += hypStateValue2.f0;
                         }
                     }
@@ -163,9 +131,9 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
                     //Step below given key and search down
                     for(int downIndex = (key-1); downIndex > 0; downIndex--){
 
-                        double[] nextCoord = setOfMeanCoords.get(downIndex);
+                        ArrayList<Double> nextCoord = setOfMeanCoords.get(downIndex);
                         //Continue searching until we have left the acceptable range of values
-                        if(Math.abs(centerCoords[dimWithHighRange-1] - nextCoord[dimWithHighRange-1]) > rangeOfVals){
+                        if(Math.abs(centerCoords.get(dimWithHighRange - 1) - nextCoord.get(dimWithHighRange - 1)) > rangeOfVals){
                             break;
                         }else{
                             //Calculate distance and return neighborhood level
@@ -174,10 +142,6 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
                                 //Recreate hypercubeID and get its state values
                                 double nextCoordID = recreateHypercubeID(nextCoord);
                                 Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                                //Get unique set of neighbors for LSH search
-                                if(!uniqueKeys.contains(nextCoordID)){
-                                    uniqueKeys.add(nextCoordID);
-                                }
                                 //Add count from level 1 cell to level1NeighborhoodCount
                                 level1NeighborhoodCount += hypStateValue2.f0;
                                 totalNeighborhoodCount += hypStateValue2.f0;
@@ -188,10 +152,6 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
                             }else if(cellLevel == 2){
                                 double nextCoordID = recreateHypercubeID(nextCoord);
                                 Tuple2<Integer, double[]> hypStateValue2 = hypercubeState.get(nextCoordID);
-                                //Get unique set of neighbors for LSH search
-                                if(!uniqueKeys.contains(nextCoordID)){
-                                    uniqueKeys.add(nextCoordID);
-                                }
                                 totalNeighborhoodCount += hypStateValue2.f0;
                             }
                         }
@@ -207,33 +167,7 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
             }
         }
 
-        //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
-        if(potentialOutliers.size() > 0){
-            //Start off by getting all neighbors for each likelyOutlier
-            ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
-            for(double theseNeighs : uniqueKeys){
-                setOfNeighPoints.addAll(setOfDataPoints.get(theseNeighs));
-            }
-            //Pass query (current data point) and neighbors to LSH
-            double hashFunctions = Math.log(setOfNeighPoints.size());
-            int KValue;
-            if(hashFunctions % 1 >= 0.5){
-                KValue = (int) Math.ceil(hashFunctions);
-            }else{
-                KValue = (int) Math.floor(hashFunctions);
-            }
-            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
-            for(double[] training : setOfNeighPoints){
-                LSH.put(training, training);
-            }
-            for(Hypercube hypercubePoint : potentialOutliers){
-                double[] potentialOutliers = hypercubePoint.coords;
-                Neighbor[] approxNeighbors = LSH.knn(potentialOutliers, minPts);
-                if(approxNeighbors.length < minPts){
-                    collector.collect(hypercubePoint);
-                }
-            }
-        }
+
 
         long time_final = System.currentTimeMillis();
         cpuTime += (time_final - time_init);
@@ -242,22 +176,19 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
         System.out.println("Average time: " + (cpuTime / numberIterations));
 
         //Clean up states to ensure the program does not get bogged down by traversing information like HypercubeStates that do not have any data points in the current window
-        setOfDataPoints.clear();
         potentialOutliers.clear();
-        hypercubeNeighs.clear();
-        uniqueKeys.clear();
         hypercubeState.clear();
         setOfMeanCoords.clear();
 
     }
 
 
-    private int determineNeighborhoodLevel(double[] centerCell, double[] potentialNeighbor){
+    private int determineNeighborhoodLevel(ArrayList<Double> centerCell, ArrayList<Double> potentialNeighbor){
 
         //Calculate distance function
         double distance = 0;
-        for(int currIndex = 0; currIndex < centerCell.length; currIndex++){
-            distance += Math.pow(centerCell[currIndex] - potentialNeighbor[currIndex], 2);
+        for(int currIndex = 0; currIndex < centerCell.size(); currIndex++){
+            distance += Math.pow(centerCell.get(currIndex) - potentialNeighbor.get(currIndex), 2);
         }
         distance = Math.sqrt(distance);
         double upperBound = distance + (radius/2);
@@ -276,7 +207,7 @@ public class OutlierDetectionTheFifth extends ProcessAllWindowFunction<Hypercube
         }
     }
 
-    private double recreateHypercubeID(double[] meanCoordinates){
+    private double recreateHypercubeID(ArrayList<Double> meanCoordinates){
         String uniqueID = "";
         for(double currVal : meanCoordinates){
             int ceiling = (int) Math.ceil(currVal);

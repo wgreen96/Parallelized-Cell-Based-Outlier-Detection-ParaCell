@@ -11,6 +11,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class StreamingJob {
 
@@ -22,17 +23,30 @@ public class StreamingJob {
         long slideSize = 500;
         int minPts = 50;
 
-        int dimWithLargeestRangeOfValues = 2;
-        double radius = 1.9;
-        int dimensions = 3;
-        String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
+//        int dimWithLargeestRangeOfValues = 2;
+//        double radius = 1.9;
+//        int dimensions = 3;
+        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
         //String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
 
 //        double radius = 34;
 //        int dimensions = 10;
 //        int dimWithLargeestRangeOfValues = 10;
-        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
-        //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+//        String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
+//        String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+
+//        double radius = 34;
+//        int dimensions = 10;
+//        int dimWithLargeestRangeOfValues = 10;
+//        String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+
+        //This dataset is special. The first value is a timestamp, so it is actually 28 dimensions
+        //TODO Need to implement a input boolean to indicate if the dataset has a timestamp as the first column
+        //TODO For test purposes and limited time, I am going to ignore the timestamp for now
+        double radius = 5;
+        int dimensions = 28;
+        int dimWithLargeestRangeOfValues = 1;
+        String myInput = "/home/green/Downloads/energydata_completeTestWithoutExp.txt";
         double hypercubeSide = (radius/2) / Math.sqrt(dimensions);
 
         //Generate environment for DataStream and Table API
@@ -56,17 +70,32 @@ public class StreamingJob {
         OutlierDetectionTheFifth.dimWithHighRange = dimWithLargeestRangeOfValues;
 
 
+//        //Create DataStream using a source
+//        DataStream<Hypercube> dataStream = env
+//                .readTextFile(myInput)
+//                .map((line) -> {
+//                    String[] stringCoords = line.split(delimiter);
+//                    double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
+//                    long currTime = System.currentTimeMillis();
+//                    return new Hypercube(coords, currTime);
+//                })
+//                .setParallelism(1);
+
         //Create DataStream using a source
         DataStream<Hypercube> dataStream = env
                 .readTextFile(myInput)
                 .map((line) -> {
-                    String[] stringCoords = line.split(delimiter);
+                    String[] tempLine = line.split(";");
+                    String[] stringCoords = tempLine[1].split(delimiter);
+//                    ArrayList<Double> doubleCoords = new ArrayList<>();
+//                    for(String stringVal : stringCoords){
+//                        doubleCoords.add(Double.parseDouble(stringVal));
+//                    }
                     double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
                     long currTime = System.currentTimeMillis();
+                    Thread.sleep(1);
                     return new Hypercube(coords, currTime);
-                })
-                .setParallelism(1);
-
+                });
 
 
         //Generate HypercubeID and PartitionID for each data object in the stream
@@ -74,23 +103,34 @@ public class StreamingJob {
                 dataStream
                         .map(HypercubeGeneration::createPartitions);
 
+//        //Partition the data by partitionID
+//        DataStream<Hypercube> dataWithCellSummaries =
+//                dataWithHypercubeID
+//                        .keyBy(Hypercube::getKey)
+//                        .process(new CellSummaryCreation());
+
         //Partition the data by partitionID
         DataStream<Hypercube> dataWithCellSummaries =
                 dataWithHypercubeID
                         .keyBy(Hypercube::getKey)
-                        .process(new CellSummaryCreation());
+                        .process(new CellSummaryCreationSixth());
 
 
 
-        DataStream<Hypercube> outliers =
-            dataWithCellSummaries
-                    .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                    .process(new OutlierDetectionTheFifth())
-                    .setParallelism(1);
-
-        outliers
-                .writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE)
+        dataWithCellSummaries
+                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                .process(new OutlierDetectionTheSixth())
                 .setParallelism(1);
+
+//        DataStream<Hypercube> outliers =
+//            dataWithCellSummaries
+//                    .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+//                    .process(new OutlierDetectionTheFifth())
+//                    .setParallelism(1);
+
+//        outliers
+//                .writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE)
+//                .setParallelism(1);
 
 
 

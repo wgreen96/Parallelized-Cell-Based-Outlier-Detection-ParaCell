@@ -17,7 +17,7 @@ public class HypercubeGeneration {
     public static Hypercube createPartitions(Hypercube dataPoint){
         //Create data structure to store values that will become HypercubeID
         ArrayList<Double> multiplicationValues = new ArrayList<>();
-        double[] arrayOfMeans = new double[(int)dimensions];
+        ArrayList<Double> arrayOfMeans = new ArrayList<>();
         double[] arrayOfIDs = new double[(int)dimensions];
         //For each coordinate
         for(Double val : dataPoint.coords) {
@@ -31,7 +31,7 @@ public class HypercubeGeneration {
         double newHypercubeID = arrayOfIDs[0];
         double newHyperoctantID = arrayOfIDs[1];
         for(int i = 0; i < dimensions; i++){
-            arrayOfMeans[i] = arrayOfIDs[i+2];
+            arrayOfMeans.add(arrayOfIDs[i+2]);
         }
         int newPartitionID = (int) (Math.abs(newHypercubeID) % partitions);
         return new Hypercube(dataPoint.coords, dataPoint.arrival, newHypercubeID, newHyperoctantID, newPartitionID, arrayOfMeans);
