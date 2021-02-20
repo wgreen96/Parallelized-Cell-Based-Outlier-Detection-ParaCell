@@ -21,19 +21,20 @@ public class StreamingJob {
         int partitions = 8;
         long windowSize = 10000;
         long slideSize = 500;
-        int minPts = 50;
 
-        int dimWithLargeestRangeOfValues = 2;
-        double radius = 1.9;
-        int dimensions = 3;
-        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
-        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+//        int dimWithLargeestRangeOfValues = 2;
+//        int minPts = 50;
+//        double radius = 1.9;
+//        int dimensions = 3;
+//        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
+//        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
 
-//        double radius = 34;
-//        int dimensions = 10;
-//        int dimWithLargeestRangeOfValues = 10;
-////        String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
-//        String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
+        double radius = 587.0;
+        int minPts = 38;
+        int dimensions = 10;
+        int dimWithLargeestRangeOfValues = 10;
+        String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
+        //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
 
 //        double radius = 34;
 //        int dimensions = 10;

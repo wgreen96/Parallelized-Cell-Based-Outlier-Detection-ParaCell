@@ -18,22 +18,21 @@ import java.util.LinkedList;
 public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
 
     //State stores (HypercubeID, count of data points with HypercubeID)
-    private MapState<Double, Tuple2<Integer, Long>> hypercubeState;
+    private MapState<String, Tuple2<Integer, Long>> hypercubeState;
     //State stores (HypercubeID, time before data point is pruned and state.value should be decremented)
-    private MapState<Double, LinkedList> timeState;
+    private MapState<String, LinkedList> timeState;
 
     //The amount of time after processing that a data point can live. Is measured in milliseconds
     static long windowSize;
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        MapStateDescriptor<Double, Tuple2<Integer, Long>> hypState = new MapStateDescriptor<>(
+        MapStateDescriptor<String, Tuple2<Integer, Long>> hypState = new MapStateDescriptor<>(
                 "modelState",
-                BasicTypeInfo.DOUBLE_TYPE_INFO,
+                BasicTypeInfo.STRING_TYPE_INFO,
                 TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Long.class));
         hypercubeState = getRuntimeContext().getMapState(hypState);
-        //hypercubeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Hypercube Count", Double.class, Tuple2.class));
-        timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", Double.class, LinkedList.class));
+        timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", String.class, LinkedList.class));
     }
 
 
@@ -45,7 +44,7 @@ public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hype
 
 
         //Parse hypercubeID
-        double currHypID = currPoint.hypercubeID;
+        String currHypID = currPoint.hypercubeID;
         //Check if that hypercubeID exists in MapState. If so
         if(hypercubeState.contains(currHypID)){
             //True, increment value and timestamp associated with ID
@@ -99,25 +98,13 @@ public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hype
         centerCoordsWithCount.add(currState.f0.doubleValue());
 
         //System.out.println("Current ID: " + currHypID + ", Current Time: " + currState.f1);
-        //System.out.println(currState.f0);
 
                 //Return state with HypercubeID, count to be processed by OutlierDetection function
         Hypercube newPoint = new Hypercube(currPoint.coords, currState.f1, currPoint.hypercubeID,
-                currPoint.hyperoctantID, currPoint.partitionID,
+                currPoint.partitionID,
                 centerCoordsWithCount, currState.f0);
 
         collector.collect(newPoint);
 
     }
 }
-
-//public class CellSummaryCreation extends KeyedProcessFunction<Integer, HypercubePoint, Tuple2<Double, Integer>> {
-//    public void processElement(
-//            HypercubePoint hypercubePoint,
-//            Context context,
-//            Collector<Tuple2<Double, Integer>> collector) throws Exception {
-
-//Tuple2<Double, Integer> stateOfHypercube = new Tuple2<Double, Integer>(currHypID, hypercubeState.get(currHypID));
-//        collector.collect(stateOfHypercube);
-
-

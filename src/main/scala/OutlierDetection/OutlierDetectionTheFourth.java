@@ -35,6 +35,7 @@
 //                        Collector<Hypercube> collector) throws Exception {
 //
 //
+//        int numOutliers = 0;
 //        long time_init = System.currentTimeMillis();
 //
 //        //Get window time
@@ -44,10 +45,18 @@
 //        for(Hypercube currPoints: windowPoints){
 //
 //            double currHypID = currPoints.hypercubeID;
-//            double currHypOctID = currPoints.hyperoctantID;
 //            long currTime = currPoints.arrival;
 //            int currHypCount = currPoints.hypercubeCount;
-//            double[] currHypMeanCoords = currPoints.centerOfCellCoords;
+//            double[] currHypMeanCoords = new double[dimensions];
+//            int indexCounter = 0;
+//            for(double vals : currPoints.centerOfCellCoords){
+//                if(indexCounter == dimensions){
+//
+//                }else{
+//                    currHypMeanCoords[indexCounter] = vals;
+//                    indexCounter++;
+//                }
+//            }
 //
 //
 //            //Check if the state is new
@@ -174,10 +183,10 @@
 //                //If level 1 neighbors still isn't enough to reach k, add data point to list of data points that still need processing
 //                if(level1NeighborhoodCount < minPts){
 //                    //If the total neighborhood, level 1 and 2, is less than minPts then it is guaranteed to be an outlier so no further processing is needed
-//                    //TODO IF THIS IS EVER USED AGAIN, FIX THIS. TOTALNEIGHBORHOOD IS ALWAYS 0 FOR HYPERCUBES THAT HAVNT BEEN CHECKED BEFORE
-//                    if(totalNeighborhoodCount < minPts){
+//                    if(totalNeighborhoodCount < minPts && hypercubeNeighs.containsKey(currHypID)){
 //                        //Remove data point because it is guaranteed to be an outlier
 //                        potentialOutliers.remove(prunedData);
+//                        numOutliers++;
 //                        collector.collect(prunedData);
 //                    }
 //                }else{
@@ -191,38 +200,40 @@
 //        }
 //
 //
-////        //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
-////        if(potentialOutliers.size() > 0){
-////            //Start off by getting all neighbors for each likelyOutlier
-////            ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
-////            for(double theseNeighs : uniqueKeys){
-////                setOfNeighPoints.addAll(setOfDataPoints.get(theseNeighs));
-////            }
-////            //Pass query (current data point) and neighbors to LSH
-////            double hashFunctions = Math.log(setOfNeighPoints.size());
-////            int KValue;
-////            if(hashFunctions % 1 >= 0.5){
-////                KValue = (int) Math.ceil(hashFunctions);
-////            }else{
-////                KValue = (int) Math.floor(hashFunctions);
-////            }
-////            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
-////            for(double[] training : setOfNeighPoints){
-////                LSH.put(training, training);
-////            }
-////
-////            for(Hypercube hypercubePoint : potentialOutliers){
-////                double[] potentialOutliers = hypercubePoint.coords;
-////                Neighbor[] approxNeighbors = LSH.knn(potentialOutliers, minPts);
-////                if(approxNeighbors.length < minPts){
-////                    collector.collect(hypercubePoint);
-////                }
-////            }
-////        }
+//        //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
+//        if(potentialOutliers.size() > 0){
+//            //Start off by getting all neighbors for each likelyOutlier
+//            ArrayList<double[]> setOfNeighPoints = new ArrayList<>();
+//            for(double theseNeighs : uniqueKeys){
+//                setOfNeighPoints.addAll(setOfDataPoints.get(theseNeighs));
+//            }
+//            //Pass query (current data point) and neighbors to LSH
+//            double hashFunctions = Math.log(setOfNeighPoints.size());
+//            int KValue;
+//            if(hashFunctions % 1 >= 0.5){
+//                KValue = (int) Math.ceil(hashFunctions);
+//            }else{
+//                KValue = (int) Math.floor(hashFunctions);
+//            }
+//            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
+//            for(double[] training : setOfNeighPoints){
+//                LSH.put(training, training);
+//            }
+//
+//            for(Hypercube hypercubePoint : potentialOutliers){
+//                double[] potentialOutliers = hypercubePoint.coords;
+//                Neighbor[] approxNeighbors = LSH.knn(potentialOutliers, minPts);
+//                if(approxNeighbors.length < minPts){
+//                    collector.collect(hypercubePoint);
+//                    numOutliers++;
+//                }
+//            }
+//        }
 //
 //        long time_final = System.currentTimeMillis();
 //        cpuTime += (time_final - time_init);
 //        numberIterations += 1;
+//        System.out.println(numOutliers);
 //
 //        //Clean up states to ensure the program does not get bogged down by traversing information like HypercubeStates that do not have any data points in the current window
 //        setOfDataPoints.clear();

@@ -10,8 +10,7 @@ public class Hypercube implements Serializable {
 
     public double[] coords;
     public long arrival;
-    public double hypercubeID;
-    public double hyperoctantID;
+    public String hypercubeID;
     public int partitionID;
     public int hypercubeCount;
     public ArrayList<Double> centerOfCellCoords;
@@ -25,20 +24,18 @@ public class Hypercube implements Serializable {
         this.arrival = timeOfArrival;
     }
 
-    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, ArrayList<Double> means){
+    public Hypercube(double[] vals, long timeOfArrival, String hID, int pID, ArrayList<Double> means){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
-        this.hyperoctantID = octID;
         this.partitionID = pID;
         this.centerOfCellCoords = means;
     }
 
-    public Hypercube(double[] vals, long timeOfArrival, double hID, double octID, int pID, ArrayList<Double> means, int hypcubeCnt){
+    public Hypercube(double[] vals, long timeOfArrival, String hID, int pID, ArrayList<Double> means, int hypcubeCnt){
         this.coords = vals;
         this.arrival = timeOfArrival;
         this.hypercubeID = hID;
-        this.hyperoctantID = octID;
         this.partitionID = pID;
         this.centerOfCellCoords = means;
         this.hypercubeCount = hypcubeCnt;
@@ -61,20 +58,12 @@ public class Hypercube implements Serializable {
         this.arrival = arrival;
     }
 
-    public double getHypercubeID() {
+    public String getHypercubeID() {
         return hypercubeID;
     }
 
-    public void setHypercubeID(double hypercubeID) {
+    public void setHypercubeID(String hypercubeID) {
         this.hypercubeID = hypercubeID;
-    }
-
-    public double getHyperoctantID() {
-        return hyperoctantID;
-    }
-
-    public void setHyperoctantID(double hyperoctantID) {
-        this.hyperoctantID = hyperoctantID;
     }
 
     public int getPartitionID() {
