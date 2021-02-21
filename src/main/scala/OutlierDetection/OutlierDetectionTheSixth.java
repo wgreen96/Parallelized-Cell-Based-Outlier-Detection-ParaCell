@@ -144,8 +144,8 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
                         double rangeValue = dimVals.get(j);
                         double currCellDimValue = currCell.get(dimWithHighRange-1);
                         if(rangeValue == currCellDimValue){
-                            //Then we check if the count is high enough to continue. Count is stored in last index
-                            if(currCell.get(dimensions) > 1){
+                            //Then we search the up to the top 300 cells
+                            if(searchIndex < 100){
                                 //Call distance calculation to check if this is a level 1 neighbor
                                 int level = determineNeighborhoodLevel(meanCoords, currCell);
                                 //If true, add up count of data points in level 1 neighborhood
@@ -182,8 +182,11 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
                     //Increment search index to retrieve the next data point for each value in dimVals
                     searchIndex++;
                 }
+            }else{
+                potentialOutliers.remove(prunedData);
             }
         }
+
 
         //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
         if(potentialOutliers.size() > 0){
@@ -195,13 +198,16 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
             }else{
                 KValue = (int) Math.floor(hashFunctions);
             }
-            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius);
+            if(KValue < 1){
+                KValue = 1;
+            }
+            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius*4);
             for(Hypercube currPoints: windowPoints){
                 LSH.put(currPoints.coords, currPoints.coords);
             }
             for(Hypercube hypercubePoint : potentialOutliers){
-                double[] potentialOutliers = hypercubePoint.coords;
-                Neighbor[] approxNeighbors = LSH.knn(potentialOutliers, minPts);
+                double[] queryPoint = hypercubePoint.coords;
+                Neighbor[] approxNeighbors = LSH.knn(queryPoint, minPts);
                 if(approxNeighbors.length < minPts){
                     collector.collect(hypercubePoint);
                     totalOutliers++;
@@ -209,14 +215,14 @@ public class OutlierDetectionTheSixth extends ProcessAllWindowFunction<Hypercube
             }
         }
 
-
-        long time_final = System.currentTimeMillis();
-        cpuTime += (time_final - time_init);
-        numberIterations += 1;
-        System.out.println("Total time: " + (time_final - time_init));
-        System.out.println("Average time: " + (cpuTime / numberIterations));
-
-
+        if(potentialOutliers.size() != 0){
+            long time_final = System.currentTimeMillis();
+            cpuTime += (time_final - time_init);
+            numberIterations += 1;
+            System.out.println("Total time: " + (time_final - time_init));
+            System.out.println("Average time: " + (cpuTime / numberIterations));
+            System.out.println("Outliers: " + totalOutliers);
+        }
 
         //Clean up states to ensure the program does not get bogged down by traversing information like HypercubeStates that do not have any data points in the current window
         potentialOutliers.clear();

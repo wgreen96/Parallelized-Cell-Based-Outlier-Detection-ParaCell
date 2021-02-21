@@ -18,6 +18,8 @@ public class StreamingJob {
     public static void main(String[] args) throws Exception {
 
         String delimiter = ",";
+        String outputFile = "/home/green/Documents/testOutputApacheFlink.txt";
+        //String outputFile = "C:/Users/wgree/Documents/testOutputApacheFlink.txt";
         int partitions = 8;
         long windowSize = 10000;
         long slideSize = 500;
@@ -29,54 +31,35 @@ public class StreamingJob {
 //        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
 //        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
 
-        double radius = 587.0;
-        int minPts = 38;
-        int dimensions = 10;
-        int dimWithLargeestRangeOfValues = 10;
-        String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
-        //String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
-
-//        double radius = 34;
+//        double radius = 739.0;
+//        int minPts = 33;
 //        int dimensions = 10;
 //        int dimWithLargeestRangeOfValues = 10;
+//        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
 //        String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
 
-        //This dataset is special. The first value is a timestamp, so it is actually 28 dimensions
-        //TODO Need to implement a input boolean to indicate if the dataset has a timestamp as the first column
-        //TODO For test purposes and limited time, I am going to ignore the timestamp for now
-//        double radius = 5;
-//        int dimensions = 28;
-//        int dimWithLargeestRangeOfValues = 1;
-//        String myInput = "/home/green/Downloads/energydata_completeTestWithoutExp.txt";
-        double hypercubeSide = (radius/2) / Math.sqrt(dimensions);
+//        double radius = 13;
+//        int minPts = 30;
+//        int dimensions = 67;
+//        int dimWithLargeestRangeOfValues = 14;
+//        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
+//        String myInput = "/home/green/Documents/Datasets/FARS.txt";
+
+        double radius = 2000;
+        int minPts = 20;
+        int dimensions = 90;
+        int dimWithLargeestRangeOfValues = 14;
+        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
+        String myInput = "/home/green/Documents/Datasets/YearPredictionMSD.txt";
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(partitions);
 
-        //TOOD How can I make this automatic? This has screwed me over too many times now to be left as hardcode
-        //Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
-        HypercubeGeneration.dimensions = dimensions;
-        HypercubeGeneration.hypercubeSide = hypercubeSide;
-        HypercubeGeneration.partitions = partitions;
-//        CellSummaryCreation.windowSize = windowSize;
-        CellSummaryCreationSixth.windowSize = windowSize;
-//        OutlierDetectionTheFourth.slideSize = slideSize;
-//        OutlierDetectionTheFourth.minPts = minPts;
-//        OutlierDetectionTheFourth.dimensions = dimensions;
-//        OutlierDetectionTheFourth.radius = radius;
-//        OutlierDetectionTheFifth.slideSize = slideSize;
-//        OutlierDetectionTheFifth.minPts = minPts;
-//        OutlierDetectionTheFifth.dimensions = dimensions;
-//        OutlierDetectionTheFifth.radius = radius;
-//        OutlierDetectionTheFifth.hypercubeSide = hypercubeSide;
-//        OutlierDetectionTheFifth.dimWithHighRange = dimWithLargeestRangeOfValues;
-        OutlierDetectionTheSixth.slideSize = slideSize;
-        OutlierDetectionTheSixth.minPts = minPts;
-        OutlierDetectionTheSixth.dimensions = dimensions;
-        OutlierDetectionTheSixth.radius = radius;
-        OutlierDetectionTheSixth.hypercubeSide = hypercubeSide;
-        OutlierDetectionTheSixth.dimWithHighRange = dimWithLargeestRangeOfValues;
+        //Calculate the hypercube side for every cell
+        double hypercubeSide = (radius/2) / Math.sqrt(dimensions);
+        //Set static parameters for Hypercube Generation, Cell Summary Creation, and Outlier Detection
+        setParameters(dimensions, hypercubeSide, partitions, windowSize, slideSize, minPts, radius, dimWithLargeestRangeOfValues);
 
 
         //Create DataStream using a source
@@ -125,88 +108,38 @@ public class StreamingJob {
                         .process(new CellSummaryCreationSixth());
 
 
+        DataStream<Hypercube> outliers =
+            dataWithCellSummaries
+                    .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                    .allowedLateness(Time.milliseconds(slideSize))
+                    .process(new OutlierDetectionTheSixth())
+                    .setParallelism(1);
 
-        dataWithCellSummaries
-                .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                .process(new OutlierDetectionTheSixth())
+        outliers
+                .writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);
-
-//        DataStream<Hypercube> outliers =
-//            dataWithCellSummaries
-//                    .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-//                    .process(new OutlierDetectionTheFifth())
-//                    .setParallelism(1);
-
-//        outliers
-//                .writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE)
-//                .setParallelism(1);
 
 
 
         env.execute("Java Streaming Job");
     }
 
-
+    public static void setParameters(int dim, double hypSide, int partition, long wSize, long sSize, int k, double r, int dimToSort){
+        HypercubeGeneration.dimensions = dim;
+        HypercubeGeneration.hypercubeSide = hypSide;
+        HypercubeGeneration.partitions = partition;
+        CellSummaryCreationSixth.windowSize = wSize;
+        OutlierDetectionTheSixth.slideSize = sSize;
+        OutlierDetectionTheSixth.minPts = k;
+        OutlierDetectionTheSixth.dimensions = dim;
+        OutlierDetectionTheSixth.radius = r;
+        OutlierDetectionTheSixth.hypercubeSide = hypSide;
+        OutlierDetectionTheSixth.dimWithHighRange = dimToSort;
+    }
 
 }
 
-//        newData.writeAsText("C:/Users/wgree/Documents/testOutputApacheFlink.txt", FileSystem.WriteMode.OVERWRITE);
 
-
-//        Table table1 = tblEnv.fromDataStream(newData, $("coords"), $("arrival"), $("hypercubeID"), $("partitionID"));
-//        String[] colNames = table1.getSchema().getFieldNames();
-//        DataType[] colTypes = table1.getSchema().getFieldDataTypes();
-//
-//        for(String name:colNames){
-//            System.out.println(name);
-//        }
-//        for(DataType vars:colTypes){
-//            System.out.println(vars);
-//        }
-
-
-//    Table table1 = tblEnv.fromDataStream(newData, $("coords"), $("arrival"), $("hypercubeID"), $("partitionID"));
-//    Table result = tblEnv.sqlQuery(
-//            "SELECT partitionID FROM " + table1);
-//    // create and register a TableSink
-//    final Schema schema = new Schema()
-//            .field("partitionID", DataTypes.INT());
-//    // this doesnt work
-//    tblEnv.connect(new FileSystem().path("C:/Users/wgree/Documents/testOutputApacheFlink.txt"))
-//            .withFormat(new OldCsv())
-//            .withSchema(schema)
-//            .createTemporaryTable("RubberOrders");
-
-
-//        //Create partitions for counting number of objects in hypercube
-//        Table summaryTable = dataTable
-//                .window(Over
-//                            .partitionBy($("partitionID"))
-//                            .orderBy($("arrival"))
-//                            .preceding(UNBOUNDED_RANGE)
-//                            .following(CURRENT_RANGE)
-//                            .as("HypercubeCount"))
-//                .select(
-//                        $("b").avg().over($("w"))
-//                );
-
-//Partition the data by partitionID
-//        //Table testTable =
-//        newData
-//                .keyBy(HypercubePoint::getKey)
-//                .window(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-//                .allowedLateness(Time.milliseconds(slideSize))
-//                .process(new CellSummaryCreation());
-
-//convert stream into table, .rowtime() converts arrival values in arrival to timestamp values
-//        Table dataTable = tblEnv.fromDataStream(newData, $("coords"), $("arrival").rowtime(), $("hypercubeID"), $("partitionID"));
-
-//        //Partition the data by partitionID
-//        DataStream<Iterable<Map.Entry<Integer, Integer>>> cellSummaries =
-//                newData
-//                        .keyBy(HypercubePoint::getKey)
-//                        .process(new CellSummaryCreation())
-//                        .setParallelism(partitions);
 
 //                .assignTimestampsAndWatermarks(WatermarkStrategy.<HypercubePoint>forMonotonousTimestamps()
 //                                                                .withTimestampAssigner((HypercubePoint, timestamp) -> HypercubePoint.getArrival()));
@@ -221,12 +154,26 @@ public class StreamingJob {
 //                        .keyBy(HypercubePoint::getKey)
 //                        .process(new CellSummaryCreation());
 
-//        cellSummaries
-//                .print()
-//                .setParallelism(1);
 
-
-//        cellSummaries
-//                .connect(newData)
-//                .process(new OutlierDetection())
-//                .setParallelism(1);
+//Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
+//        HypercubeGeneration.dimensions = dimensions;
+//                HypercubeGeneration.hypercubeSide = hypercubeSide;
+//                HypercubeGeneration.partitions = partitions;
+////        CellSummaryCreation.windowSize = windowSize;
+//                CellSummaryCreationSixth.windowSize = windowSize;
+////        OutlierDetectionTheFourth.slideSize = slideSize;
+////        OutlierDetectionTheFourth.minPts = minPts;
+////        OutlierDetectionTheFourth.dimensions = dimensions;
+////        OutlierDetectionTheFourth.radius = radius;
+////        OutlierDetectionTheFifth.slideSize = slideSize;
+////        OutlierDetectionTheFifth.minPts = minPts;
+////        OutlierDetectionTheFifth.dimensions = dimensions;
+////        OutlierDetectionTheFifth.radius = radius;
+////        OutlierDetectionTheFifth.hypercubeSide = hypercubeSide;
+////        OutlierDetectionTheFifth.dimWithHighRange = dimWithLargeestRangeOfValues;
+//                OutlierDetectionTheSixth.slideSize = slideSize;
+//                OutlierDetectionTheSixth.minPts = minPts;
+//                OutlierDetectionTheSixth.dimensions = dimensions;
+//                OutlierDetectionTheSixth.radius = radius;
+//                OutlierDetectionTheSixth.hypercubeSide = hypercubeSide;
+//                OutlierDetectionTheSixth.dimWithHighRange = dimWithLargeestRangeOfValues;
