@@ -131,27 +131,4 @@ public class Hypercube implements Serializable {
         return this.coordsToString();
     }
 
-    static class CustomerSortingComparator implements Comparator<Hypercube> {
-        @Override
-        public int compare(Hypercube cell1, Hypercube cell2) {
-            int result = 0;
-            // for comparison
-            int x1 = Double.compare(cell1.coords[0],cell2.coords[0]);
-            int x2 = Double.compare(cell1.coords[1],cell2.coords[1]);
-            int x3 = Double.compare(cell1.coords[2],cell2.coords[2]);
-
-            // 2-level comparison using if-else block
-            if (x1 == 0) {
-                if(x2 == 0){
-                    result = x3;
-                }else{
-                    result = x2;
-                }
-            }else {
-                result = x1;
-            }
-            return result;
-        }
-    }
-
 }

@@ -1,17 +1,20 @@
 package OutlierDetection;
 
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.util.OutputTag;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 public class StreamingJob {
 
@@ -19,47 +22,59 @@ public class StreamingJob {
 
         String delimiter = ",";
         String outputFile = "/home/green/Documents/testOutputApacheFlink.txt";
-        //String outputFile = "C:/Users/wgree/Documents/testOutputApacheFlink.txt";
+        boolean OutlierDetectionParallel = false;
+        int dimWithLargeestRangeOfValues = 0;
+        int minPts = 0;
+        double radius = 0.0;
+        int dimensions = 0;
+        String myInput = "";
         int partitions = 8;
+
         long windowSize = 10000;
-        long slideSize = 500;
+        long slideSize = 2000;
+        int queryType = 2;
+        int lshType = 1;
+        String dataset = "MSD";
 
-//        int dimWithLargeestRangeOfValues = 2;
-//        int minPts = 50;
-//        double radius = 1.9;
-//        int dimensions = 3;
-//        //String myInput = "C:/Users/wgree//Git/PROUD/data/TAO/tree_input.txt";
-//        String myInput = "/home/green/Documents/PROUD/data/TAO/tree_input.txt";
+        if(dataset == "TAO"){
+            dimWithLargeestRangeOfValues = 2;
+            minPts = 50;
+            radius = 1.9;
+            dimensions = 3;
+            myInput = "/home/green/Documents/Datasets/TAO.txt";
+        }else if(dataset == "FC"){
+            radius = 739.0;
+            minPts = 33;
+            dimensions = 10;
+            dimWithLargeestRangeOfValues = 10;
+            myInput = "/home/green/Documents/Datasets/ForestCover.txt";
+        }else if(dataset == "FARS") {
+            radius = 13;
+            minPts = 30;
+            dimensions = 67;
+            dimWithLargeestRangeOfValues = 14;
+            myInput = "/home/green/Documents/Datasets/FARS.txt";
+        }else if(dataset == "MSD"){
+            radius = 2000;
+            minPts = 20;
+            dimensions = 90;
+            dimWithLargeestRangeOfValues = 14;
+            myInput = "/home/green/Documents/Datasets/YearPredictionMSD.txt";
+        }else{
+            System.out.println("Dataset does not exist");
+            System.exit(-1);
+        }
 
-//        double radius = 739.0;
-//        int minPts = 33;
-//        int dimensions = 10;
-//        int dimWithLargeestRangeOfValues = 10;
-//        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
-//        String myInput = "/home/green/Documents/Datasets/ForestCoverTest1.txt";
-
-//        double radius = 13;
-//        int minPts = 30;
-//        int dimensions = 67;
-//        int dimWithLargeestRangeOfValues = 14;
-//        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
-//        String myInput = "/home/green/Documents/Datasets/FARS.txt";
-
-        double radius = 2000;
-        int minPts = 20;
-        int dimensions = 90;
-        int dimWithLargeestRangeOfValues = 14;
-        //String myInput = "C:/Users/wgree/Git/OutlierThesisDevelopment/ForestCoverTest1.txt";
-        String myInput = "/home/green/Documents/Datasets/YearPredictionMSD.txt";
 
         //Generate environment for DataStream and Table API
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(partitions);
 
+
         //Calculate the hypercube side for every cell
         double hypercubeSide = (radius/2) / Math.sqrt(dimensions);
         //Set static parameters for Hypercube Generation, Cell Summary Creation, and Outlier Detection
-        setParameters(dimensions, hypercubeSide, partitions, windowSize, slideSize, minPts, radius, dimWithLargeestRangeOfValues);
+        setParameters(dimensions, hypercubeSide, partitions, windowSize, slideSize, minPts, radius, dimWithLargeestRangeOfValues, queryType, lshType);
 
 
         //Create DataStream using a source
@@ -68,73 +83,94 @@ public class StreamingJob {
                 .map((line) -> {
                     String[] stringCoords = line.split(delimiter);
                     double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
+                    //Simulate events arriving once every millisecond
+                    Thread.sleep(1);
                     long currTime = System.currentTimeMillis();
                     return new Hypercube(coords, currTime);
                 })
                 .setParallelism(1);
 
-//        //Create DataStream using a source
-//        DataStream<Hypercube> dataStream = env
-//                .readTextFile(myInput)
-//                .map((line) -> {
-//                    String[] tempLine = line.split(";");
-//                    String[] stringCoords = tempLine[1].split(delimiter);
-////                    ArrayList<Double> doubleCoords = new ArrayList<>();
-////                    for(String stringVal : stringCoords){
-////                        doubleCoords.add(Double.parseDouble(stringVal));
-////                    }
-//                    double[] coords = Arrays.stream(stringCoords).mapToDouble(Double::parseDouble).toArray();
-//                    long currTime = System.currentTimeMillis();
-//                    Thread.sleep(1);
-//                    return new Hypercube(coords, currTime);
-//                });
-
 
         //Generate HypercubeID and PartitionID for each data object in the stream
         DataStream<Hypercube> dataWithHypercubeID =
                 dataStream
-                        .map(HypercubeGeneration::createPartitions);
+                        .map(HypercubeGeneration::createPartitions)
+                        .setParallelism(1);
 
-//        //Partition the data by partitionID
-//        DataStream<Hypercube> dataWithCellSummaries =
-//                dataWithHypercubeID
-//                        .keyBy(Hypercube::getKey)
-//                        .process(new CellSummaryCreation());
+        //Check if outlier detection is ran in parallel. Greatly affects how the program is built
+        if(OutlierDetectionParallel){
 
-        //Partition the data by partitionID
-        DataStream<Hypercube> dataWithCellSummaries =
-                dataWithHypercubeID
-                        .keyBy(Hypercube::getKey)
-                        .process(new CellSummaryCreationSixth());
+            //Partition the data by partitionID
+            SingleOutputStreamOperator<Hypercube> dataWithCellCount =
+                    dataWithHypercubeID
+                            .keyBy(Hypercube::getKey)
+                            .process(new SerialCellSummaryCreation());
+
+            //Get information about each cell as side output
+            final OutputTag<Tuple4<String, Integer, Long, Integer>> outputTag = new OutputTag<>("side-output"){};
+            DataStream<Tuple4<String, Integer, Long, Integer>> cellSummaries =
+                    dataWithCellCount.getSideOutput(outputTag);
+
+            //Create a broadcast of that sideoutput so it can be used as a global state when running keyed outlier detection
+            MapStateDescriptor<String, Tuple4<String, Integer, Long, Integer>> hypState = new MapStateDescriptor<>(
+                    "modelState",
+                    BasicTypeInfo.STRING_TYPE_INFO,
+                    TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Long.class, Integer.class));
+            BroadcastStream<Tuple4<String, Integer, Long, Integer>> cellStream = cellSummaries.broadcast(hypState);
 
 
-        DataStream<Hypercube> outliers =
-            dataWithCellSummaries
-                    .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                    .allowedLateness(Time.milliseconds(slideSize))
-                    .process(new OutlierDetectionTheSixth())
+            dataWithCellCount
+                    .keyBy(Hypercube::getKey)
+                    .connect(cellStream)
+                    .process(new ParallelOutlierDetection());
+
+        }else{
+            //Partition the data by partitionID
+            DataStream<Hypercube> dataWithCellSummaries =
+                    dataWithHypercubeID
+                            .keyBy(Hypercube::getKey)
+                            .process(new CellSummaryCreation());
+
+            //Run Outlier Detection on the data stream and return the outliers
+            DataStream<Hypercube> outliers =
+                    dataWithCellSummaries
+                            .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                            .allowedLateness(Time.milliseconds(500))
+                            .process(new OutlierDetection())
+                            .setParallelism(1);
+
+            //Write outliers to file
+            outliers
+                    .writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE)
                     .setParallelism(1);
-
-        outliers
-                .writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE)
-                .setParallelism(1);
+        }
 
 
 
         env.execute("Java Streaming Job");
     }
 
-    public static void setParameters(int dim, double hypSide, int partition, long wSize, long sSize, int k, double r, int dimToSort){
+    public static void setParameters(int dim, double hypSide, int partition, long wSize, long sSize, int k, double r, int dimToSort, int queryType,int lshType){
         HypercubeGeneration.dimensions = dim;
         HypercubeGeneration.hypercubeSide = hypSide;
         HypercubeGeneration.partitions = partition;
-        CellSummaryCreationSixth.windowSize = wSize;
-        OutlierDetectionTheSixth.slideSize = sSize;
-        OutlierDetectionTheSixth.minPts = k;
-        OutlierDetectionTheSixth.dimensions = dim;
-        OutlierDetectionTheSixth.radius = r;
-        OutlierDetectionTheSixth.hypercubeSide = hypSide;
-        OutlierDetectionTheSixth.dimWithHighRange = dimToSort;
+        CellSummaryCreation.windowSize = wSize;
+        OutlierDetection.slideSize = sSize;
+        OutlierDetection.minPts = k;
+        OutlierDetection.dimensions = dim;
+        OutlierDetection.radius = r;
+        OutlierDetection.hypercubeSide = hypSide;
+        OutlierDetection.dimWithHighRange = dimToSort;
+        OutlierDetection.queryType = queryType;
+
+        OldCellSummaryCreation.windowSize = wSize;
+        OldOutlierDetection.slideSize = sSize;
+        OldOutlierDetection.minPts = k;
+        OldOutlierDetection.dimensions = dim;
+        OldOutlierDetection.radius = r;
+        OldOutlierDetection.hypercubeSide = hypSide;
+        OldOutlierDetection.dimWithHighRange = dimToSort;
+        OldOutlierDetection.lshType = lshType;
     }
 
 }

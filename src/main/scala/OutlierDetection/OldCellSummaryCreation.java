@@ -11,11 +11,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 
 
-public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
+public class OldCellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube, Hypercube> {
 
     //State stores (HypercubeID, count of data points with HypercubeID)
     private MapState<String, Tuple2<Integer, Long>> hypercubeState;
@@ -32,6 +31,7 @@ public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hype
                 BasicTypeInfo.STRING_TYPE_INFO,
                 TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Long.class));
         hypercubeState = getRuntimeContext().getMapState(hypState);
+        //hypercubeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Hypercube Count", Double.class, Tuple2.class));
         timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", String.class, LinkedList.class));
     }
 
@@ -92,19 +92,27 @@ public class CellSummaryCreationSixth extends KeyedProcessFunction<Integer, Hype
         //Add new state of hypercubeQueue to Map
         timeState.put(currHypID, hypercubeQueue);
 
+
         Tuple2<Integer, Long> currState = hypercubeState.get(currHypID);
-        //Add currStateCount to centerOfMeanCoords for sorting in Outlier Detection
-        ArrayList<Double> centerCoordsWithCount = currPoint.getCenterOfCellCoords();
-        centerCoordsWithCount.add(currState.f0.doubleValue());
 
         //System.out.println("Current ID: " + currHypID + ", Current Time: " + currState.f1);
 
-                //Return state with HypercubeID, count to be processed by OutlierDetection function
+        //Return state with HypercubeID, count to be processed by OutlierDetection function
         Hypercube newPoint = new Hypercube(currPoint.coords, currState.f1, currPoint.hypercubeID,
-                currPoint.partitionID,
-                centerCoordsWithCount, currState.f0);
+                                                    currPoint.partitionID,
+                                                    currPoint.centerOfCellCoords, currState.f0);
 
         collector.collect(newPoint);
 
     }
 }
+
+//public class CellSummaryCreation extends KeyedProcessFunction<Integer, HypercubePoint, Tuple2<Double, Integer>> {
+//    public void processElement(
+//            HypercubePoint hypercubePoint,
+//            Context context,
+//            Collector<Tuple2<Double, Integer>> collector) throws Exception {
+
+//Tuple2<Double, Integer> stateOfHypercube = new Tuple2<Double, Integer>(currHypID, hypercubeState.get(currHypID));
+//        collector.collect(stateOfHypercube);
+

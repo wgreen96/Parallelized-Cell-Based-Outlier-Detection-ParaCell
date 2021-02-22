@@ -2,12 +2,16 @@ package OutlierDetection;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 
 public class HypercubeGeneration {
 
     static double dimensions;
     static double hypercubeSide;
     static int partitions;
+    static Map<String, Integer> IDMap = new HashMap<>();
 
 
     public void HypercubeGeneration(){
@@ -32,7 +36,7 @@ public class HypercubeGeneration {
             double meanValue = (double)(ceiling + floor) / 2;
             arrayOfMeans.add(meanValue);
         }
-        int newPartitionID = (int) (Math.abs(Double.parseDouble(hypercubeID)) % partitions);
+        int newPartitionID = createPartitionID(hypercubeID);
         return new Hypercube(dataPoint.coords, dataPoint.arrival, hypercubeID, newPartitionID, arrayOfMeans);
     }
 
@@ -59,4 +63,23 @@ public class HypercubeGeneration {
 
         return idStorage;
     }
+
+    public static int createPartitionID(String hypID){
+        //If the key already exists
+        if(IDMap.containsKey(hypID)){
+            //Set HypercubeID for data point and get partitionID from HashMap
+            //System.out.println(IDMap.get(hypID));
+            int randNum = IDMap.get(hypID);
+            return randNum;
+        }
+        else{
+            //Create partition ID
+            Random r = new Random();
+            int randNum = r.nextInt(partitions);
+            //Store hypercubeID and partitionID in HashMap
+            IDMap.put(hypID, randNum);
+            return randNum;
+        }
+    }
+
 }
