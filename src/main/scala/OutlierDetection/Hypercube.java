@@ -41,6 +41,13 @@ public class Hypercube implements Serializable {
         this.hypercubeCount = hypcubeCnt;
     }
 
+    public Hypercube(long timeOfArrival, String hID, int hycubeCnt, int pID){
+        this.arrival = timeOfArrival;
+        this.hypercubeID = hID;
+        this.hypercubeCount = hycubeCnt;
+        this.partitionID = pID;
+    }
+
     public double[] getCoords() {
         return coords;
     }

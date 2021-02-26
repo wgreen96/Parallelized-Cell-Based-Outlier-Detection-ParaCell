@@ -1,7 +1,6 @@
 package OutlierDetection;
 
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -21,9 +20,13 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
     private MapState<String, Tuple2<Integer, Long>> hypercubeState;
     //State stores (HypercubeID, time before data point is pruned and state.value should be decremented)
     private MapState<String, LinkedList> timeState;
+    //State that stores all hypercubes for this node
+    private ListState<String> HypercubeIDs;
 
     //The amount of time after processing that a data point can live. Is measured in milliseconds
     static long windowSize;
+    //Counter to determine when states should be completely updated
+    int iterationCounter = 0;
 
     @Override
     public void open(Configuration parameters) throws Exception {
@@ -33,6 +36,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
                 TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Long.class));
         hypercubeState = getRuntimeContext().getMapState(hypState);
         timeState = getRuntimeContext().getMapState(new MapStateDescriptor<>("Time left for data points", String.class, LinkedList.class));
+        HypercubeIDs = getRuntimeContext().getListState(new ListStateDescriptor<String>("Set of hypercube ids", String.class));
     }
 
 
@@ -42,6 +46,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
             Context context,
             Collector<Hypercube> collector) throws Exception {
 
+        iterationCounter++;
         //Parse hypercubeID
         String currHypID = currPoint.hypercubeID;
         //Check if that hypercubeID exists in MapState. If so
@@ -55,6 +60,7 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
             //False, create key, value pair
             int newVal = 1;
             long newTime = context.timerService().currentProcessingTime();
+            HypercubeIDs.add(currHypID);
             hypercubeState.put(currHypID, new Tuple2<Integer, Long>(newVal, newTime));
         }
 
@@ -105,6 +111,36 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
 
 
         collector.collect(newPoint);
+
+        //Every 10000 cycles, go through the entire state and make sure every hypercube prunes any old data points
+        //== 10000 should do the trick, but I'm gonna use mod just in case that somehow breaks and it needs another chance
+        if(iterationCounter % 10000 == 0){
+            for(String keys : HypercubeIDs.get()){
+                boolean prune = true;
+                boolean modified = false;
+                if(timeState.contains(keys)){
+                    while(prune){
+                        hypercubeQueue = timeState.get(keys);
+                        if(hypercubeQueue.peek() != null && (currentTime - (long) hypercubeQueue.peek()) > windowSize){
+                            modified = true;
+                            hypercubeQueue.remove();
+                            Tuple2<Integer, Long> thisState = hypercubeState.get(keys);
+                            //Increment time and decrement count
+                            thisState.f1 = thisState.f1 + 1;
+                            thisState.f0 = thisState.f0 - 1;
+                            hypercubeState.put(keys, thisState);
+                        }else{
+                            prune = false;
+                        }
+                    }
+                    if(modified){
+                        Tuple2<Integer, Long> thisState = hypercubeState.get(keys);
+                        Hypercube updatePoint = new Hypercube(thisState.f1, keys, thisState.f0, -1);
+                        collector.collect(updatePoint);
+                    }
+                }
+            }
+        }
 
     }
 }

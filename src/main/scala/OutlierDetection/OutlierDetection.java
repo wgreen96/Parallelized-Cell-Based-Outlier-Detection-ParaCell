@@ -17,7 +17,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
     Map<String, Integer> hypercubeState = new HashMap<>();
     //State to store when a state was modified
     Map<String, Long> lastModification = new HashMap<>();
-    //State to store what the index for each hypercubestate is for later modifications
+    //State to store what the index for each hypercubestate is for later modifications. The modification is the last column of centerCoords, the updated hypercube count
     Map<String, Integer> cellIndices = new HashMap<>();
     ArrayList<Hypercube> potentialOutliers = new ArrayList<>();
     //State to store center coordinate for each hypercube
@@ -30,19 +30,30 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
     static double hypercubeSide;
     static int dimWithHighRange;
     static int queryType;
+    int truePositive = 0;
+    int falsePositive = 0;
+    int trueNegative = 0;
+    int falseNegative = 0;
+    int numberIterations = 0;
     long cpuTime = 0L;
-    double numberIterations = 0;
-    int totalOutliers = 0;
 
     @Override
     public void process(Context context,
                         Iterable<Hypercube> windowPoints,
                         Collector<Hypercube> collector) throws Exception {
 
-        long time_init = System.currentTimeMillis();
         //Get window time
         long windowEndTime = context.window().getEnd();
+        long windowStartTime = context.window().getStart();
+        long time_init = System.currentTimeMillis();
         int windowSize = 0;
+
+        ArrayList<double[]> paraCellOutliers = new ArrayList<>();
+        ArrayList<double[]> nestedLoopOutliers = new ArrayList<>();
+        ArrayList<double[]> notOutliers = new ArrayList<>();
+//        ArrayList<double[]> notOutliers1 = new ArrayList<>();
+//        ArrayList<double[]> notOutliers2 = new ArrayList<>();
+
 
         //Start off by iterating through the current window
         for(Hypercube currPoints: windowPoints){
@@ -51,43 +62,65 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
             String currHypID = currPoints.hypercubeID;
             long currTime = currPoints.arrival;
             int currHypCount = currPoints.hypercubeCount;
+            int currPartitionID = currPoints.partitionID;
 
-            //Check if the state is new
-            if(!hypercubeState.containsKey(currHypID)){
-                //If new, create entry for HypercubeState, lastModified, and setOfCenterCoords
-                hypercubeState.put(currHypID, currHypCount);
-                lastModification.put(currHypID, currTime);
-                setOfCenterCoords.add(currPoints.centerOfCellCoords);
-                cellIndices.put(currHypID, setOfCenterCoords.size()-1);
+            //TODO Make this cleaner
+            if(currPartitionID == -1){
+                //Check if the state is new
+                if(hypercubeState.containsKey(currHypID)){
+                    //Do error checking for out of order data points by only updating state if data point is newer
+                    if(currTime > lastModification.get(currHypID) || currTime <= (windowStartTime+slideSize)){
+                        hypercubeState.put(currHypID, currHypCount);
+                        lastModification.put(currHypID, currTime);
+                        int indexToReplace = cellIndices.get(currHypID);
+                        //Set val at the end instead of adding currPoints.centerOfCellCoords because this kind of data point doesnt have centerOfCellCoords
+                        ArrayList<Double> valToUpdate = setOfCenterCoords.get(indexToReplace);
+                        int arrayListSize = valToUpdate.size();
+                        valToUpdate.set(arrayListSize-1, (double) currHypCount);
+                        setOfCenterCoords.set(indexToReplace, valToUpdate);
+                    }
+                }
             }else{
-                //Do error checking for out of order data points by only updating state if data point is newer
-                if(currTime > lastModification.get(currHypID)){
+                windowSize++;
+                //Check if the state is new
+                if(!hypercubeState.containsKey(currHypID)){
+                    //If new, create entry for HypercubeState, lastModified, and setOfCenterCoords
                     hypercubeState.put(currHypID, currHypCount);
                     lastModification.put(currHypID, currTime);
-                    int indexToReplace = cellIndices.get(currHypID);
-                    setOfCenterCoords.set(indexToReplace, currPoints.centerOfCellCoords);
+                    setOfCenterCoords.add(currPoints.centerOfCellCoords);
+                    cellIndices.put(currHypID, setOfCenterCoords.size()-1);
+                }else{
+                    //Do error checking for out of order data points by only updating state if data point is newer
+                    if(currTime > lastModification.get(currHypID) || currTime <= (windowStartTime+slideSize)){
+                        hypercubeState.put(currHypID, currHypCount);
+                        lastModification.put(currHypID, currTime);
+                        int indexToReplace = cellIndices.get(currHypID);
+                        setOfCenterCoords.set(indexToReplace, currPoints.centerOfCellCoords);
+                    }
                 }
-            }
 
-            //Query type where data points are only checked before they are removed
-            if(queryType == 0){
-                //Finally, collect the list of data points to be pruned
-                if((currPoints.arrival + slideSize) > windowEndTime){
-                    potentialOutliers.add(currPoints);
+
+                //Query type where data points are only checked before they are removed
+                if(queryType == 0){
+                    //Finally, collect the list of data points to be pruned
+                    if((currPoints.arrival + slideSize) > windowEndTime){
+                        potentialOutliers.add(currPoints);
+                    }
                 }
-            }
-            //Query type where data points are checked at the middle and end of their existence
-            else if(queryType == 1){
-                if((currPoints.arrival + slideSize) > windowEndTime || ((currPoints.arrival + windowSize)/2) > windowEndTime){
-                    potentialOutliers.add(currPoints);
+                //Query type where data points are checked at the middle and end of their existence
+                else if(queryType == 1){
+                    if((currPoints.arrival + slideSize) > windowEndTime || ((currPoints.arrival + windowSize)/2) > windowEndTime){
+                        potentialOutliers.add(currPoints);
+                    }
                 }
-            }
-            //Query type where every data point is checked for every window
-            else if(queryType == 2){
-                potentialOutliers.add(currPoints);
-            }else{
-                System.out.println("Query type specified does not exist");
-                System.exit(-1);
+                //Query type where every data point is checked for every window
+                else if(queryType == 2){
+                    potentialOutliers.add(currPoints);
+                }else{
+                    System.out.println("Query type specified does not exist");
+                    System.exit(-1);
+                }
+
             }
 
         }
@@ -178,6 +211,8 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                                     //Check if count has reached minPts
                                     if(level1Count >= minPts){
                                         potentialOutliers.remove(prunedData);
+                                        notOutliers.add(prunedData.coords);
+                                        //notOutliers1.add(prunedData.coords);
                                         //Switch boolean to break while loop and immediately break for loop
                                         stop = true;
                                         break;
@@ -206,7 +241,10 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                     searchIndex++;
                 }
             }else{
+                //Greater than minPts, known not to be an outlier
                 potentialOutliers.remove(prunedData);
+                notOutliers.add(prunedData.coords);
+                //notOutliers1.add(prunedData.coords);
             }
         }
 
@@ -223,34 +261,84 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
             if(KValue < 1){
                 KValue = 1;
             }
-            MPLSH LSH = new MPLSH(dimensions, 3, KValue, radius*4);
+            MPLSH LSH = new MPLSH(dimensions, 1, KValue, radius*4);
             for(Hypercube currPoints: windowPoints){
-                LSH.put(currPoints.coords, currPoints.coords);
+                if(currPoints.partitionID != -1){
+                    LSH.put(currPoints.coords, currPoints.coords);
+                }
             }
             for(Hypercube hypercubePoint : potentialOutliers){
                 double[] queryPoint = hypercubePoint.coords;
                 Neighbor[] approxNeighbors = LSH.knn(queryPoint, minPts);
                 if(approxNeighbors.length < minPts){
                     collector.collect(hypercubePoint);
-                    totalOutliers++;
+                    paraCellOutliers.add(hypercubePoint.coords);
+                }else{
+                    notOutliers.add(hypercubePoint.coords);
+                    //notOutliers2.add(hypercubePoint.coords);
                 }
             }
         }
 
+//        //Loop to compare outliers from both programs to compute true/false positive
+//        nestedLoopOutliers = compareAccuracyWithNestedLoop(windowPoints);
+//        for(double[] outlier : paraCellOutliers){
+//            if(nestedLoopOutliers.contains(outlier)){
+//                truePositive++;
+//            }else{
+//                falsePositive++;
+//            }
+//        }
+//
+//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
+//        for(double[] normalData : notOutliers){
+//            if(nestedLoopOutliers.contains(normalData)){
+//                falseNegative++;
+//            }else{
+//                trueNegative++;
+//            }
+//        }
+
+//        int false1 = 0;
+//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
+//        for(double[] normalData : notOutliers1){
+//            if(nestedLoopOutliers.contains(normalData)){
+//                falseNegative++;
+//                false1++;
+//            }else{
+//                trueNegative++;
+//            }
+//        }
+//
+//        int false2 = 0;
+//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
+//        for(double[] normalData : notOutliers2){
+//            if(nestedLoopOutliers.contains(normalData)){
+//                falseNegative++;
+//                false1++;
+//            }else{
+//                trueNegative++;
+//            }
+//        }
+
+//        System.out.println(false1);
+//        System.out.println(false2);
+
         long time_final = System.currentTimeMillis();
-        cpuTime += (time_final - time_init);
-        numberIterations += 1;
+        cpuTime += time_final - time_init;
+        numberIterations++;
         System.out.println("Total time: " + (time_final - time_init));
         System.out.println("Average time: " + (cpuTime / numberIterations));
-        System.out.println("Outliers: " + totalOutliers);
+        System.out.println("Iteration: " + numberIterations);
         //System.out.println("Window size:" + windowSize);
-        FileWriter temp = new FileWriter("/home/green/Documents/OutputTimes.txt", true);
-        BufferedWriter writer = new BufferedWriter(temp);
-        writer.write("Total time: " + (time_final - time_init) + "\n");
-        writer.write("Average time: " + (cpuTime / numberIterations) + "\n");
-        writer.write("Outliers: " + totalOutliers + "\n");
-        writer.close();
-        temp.close();
+        //Query type 2 is the only one to check the entire set of data points in each window like the nested loop function created below
+        if(queryType == 2){
+//            System.out.println("True Positive: " + truePositive);
+//            System.out.println("False Positive: " + falsePositive);
+//            System.out.println("True Negative: " + trueNegative);
+//            System.out.println("False Negative: " + falseNegative);
+        }
+
 
         //Clean up states to ensure the program does not get bogged down by traversing information like HypercubeStates that do not have any data points in the current window
         potentialOutliers.clear();
@@ -299,5 +387,54 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
         return uniqueID;
     }
 
+    private ArrayList<double[]> compareAccuracyWithNestedLoop(Iterable<Hypercube> windowPoints) {
+
+        ArrayList<double[]> allOutliers = new ArrayList<>();
+        for (Hypercube currPoint : windowPoints) {
+            if(currPoint.partitionID != -1){
+                double[] outliers = currPoint.coords;
+                int nearCounter = 0;
+                for (Hypercube possibleNeighbors : windowPoints) {
+                    if(possibleNeighbors.partitionID != -1){
+                        double[] outliers2 = possibleNeighbors.coords;
+                        double distance = 0;
+                        for (int currIndex = 0; currIndex < outliers.length; currIndex++) {
+                            distance += Math.pow(outliers[currIndex] - outliers2[currIndex], 2);
+                        }
+                        distance = Math.sqrt(distance);
+                        if (distance <= radius) {
+                            nearCounter++;
+                        }
+                    }
+                }
+                if (nearCounter - 1 < minPts) {
+                    allOutliers.add(currPoint.coords);
+                }
+            }
+        }
+        return allOutliers;
+    }
+
 
 }
+
+
+//            System.out.println("Average Accuracy: " + avgAccuracy);
+//            System.out.println("Overall Correct: " + ((double)totalCorrect/(double)totalOverall)*100);
+//FileWriter temp = new FileWriter("/home/green/Documents/OutputTimes.txt", true);
+//            BufferedWriter writer = new BufferedWriter(temp);
+//            writer.write("Total time: " + (time_final - time_init) + "\n");
+//            writer.write("Average time: " + (cpuTime / numberIterations) + "\n");
+//            writer.write("Outliers: " + totalOutliers + "\n");
+//            writer.close();
+//            temp.close();
+
+
+//            FileWriter temp = new FileWriter("/home/green/Documents/OutputConfusionMatrix.txt", true);
+//            BufferedWriter writer = new BufferedWriter(temp);
+//            writer.write("True Positive: " + truePositive + "\n");
+//            writer.write("False Positive: " + falsePositive + "\n");
+//            writer.write("True Negative: " + trueNegative + "\n");
+//            writer.write("False Negative: " + falseNegative + "\n");
+//            writer.close();
+//            temp.close();

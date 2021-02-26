@@ -30,8 +30,8 @@ public class StreamingJob {
         String myInput = "";
         int partitions = 8;
 
-        long windowSize = 10000;
-        long slideSize = 2000;
+        long windowSize = 100000;
+        long slideSize = 20000;
         int queryType = 2;
         int lshType = 1;
         String dataset = "MSD";
