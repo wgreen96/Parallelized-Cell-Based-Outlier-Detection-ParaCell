@@ -21,8 +21,6 @@ public class StreamingJob {
     public static void main(String[] args) throws Exception {
 
         String delimiter = ",";
-        String outputFile = "/home/green/Documents/testOutputApacheFlink.txt";
-        boolean OutlierDetectionParallel = false;
         int dimWithLargeestRangeOfValues = 0;
         int minPts = 0;
         double radius = 0.0;
@@ -30,11 +28,20 @@ public class StreamingJob {
         String myInput = "";
         int partitions = 8;
 
+        //Window sizes used: 10000, 100000
+        //Slide sizes used: 500, 2000, 5000, 20000
         long windowSize = 100000;
         long slideSize = 20000;
+        //Query type 0: Only query data points about to expire
+        //Type 1: Query data points at middle and end of life
+        //Type 2: Query every data point for every window
         int queryType = 2;
+        //LSHType type 0: Build LSH once and use that to find an approximate result for all potential outliers
+        //Type 1: Build Build LSH once every time a potential outlier is discovered and return and approximate result
+        //LSHType is used in an older version of OutlierDetection. Does not have any affect on the current version
         int lshType = 1;
-        String dataset = "MSD";
+        String outputFile = "/home/green/Documents/testOutputApacheFlink.txt";
+        String dataset = "TAO";
 
         if(dataset == "TAO"){
             dimWithLargeestRangeOfValues = 2;
@@ -97,53 +104,26 @@ public class StreamingJob {
                         .map(HypercubeGeneration::createPartitions)
                         .setParallelism(1);
 
-        //Check if outlier detection is ran in parallel. Greatly affects how the program is built
-        if(OutlierDetectionParallel){
 
-            //Partition the data by partitionID
-            SingleOutputStreamOperator<Hypercube> dataWithCellCount =
-                    dataWithHypercubeID
-                            .keyBy(Hypercube::getKey)
-                            .process(new SerialCellSummaryCreation());
+        //Partition the data by partitionID
+        DataStream<Hypercube> dataWithCellSummaries =
+                dataWithHypercubeID
+                        .keyBy(Hypercube::getKey)
+                        .process(new CellSummaryCreation());
 
-            //Get information about each cell as side output
-            final OutputTag<Tuple4<String, Integer, Long, Integer>> outputTag = new OutputTag<>("side-output"){};
-            DataStream<Tuple4<String, Integer, Long, Integer>> cellSummaries =
-                    dataWithCellCount.getSideOutput(outputTag);
+        //Run Outlier Detection on the data stream and return the outliers
+        DataStream<Hypercube> outliers =
+                dataWithCellSummaries
+                        .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
+                        .allowedLateness(Time.milliseconds(500))
+                        .process(new OutlierDetection())
+                        .setParallelism(1);
 
-            //Create a broadcast of that sideoutput so it can be used as a global state when running keyed outlier detection
-            MapStateDescriptor<String, Tuple4<String, Integer, Long, Integer>> hypState = new MapStateDescriptor<>(
-                    "modelState",
-                    BasicTypeInfo.STRING_TYPE_INFO,
-                    TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Long.class, Integer.class));
-            BroadcastStream<Tuple4<String, Integer, Long, Integer>> cellStream = cellSummaries.broadcast(hypState);
+        //Write outliers to file
+        outliers
+                .writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE)
+                .setParallelism(1);
 
-
-            dataWithCellCount
-                    .keyBy(Hypercube::getKey)
-                    .connect(cellStream)
-                    .process(new ParallelOutlierDetection());
-
-        }else{
-            //Partition the data by partitionID
-            DataStream<Hypercube> dataWithCellSummaries =
-                    dataWithHypercubeID
-                            .keyBy(Hypercube::getKey)
-                            .process(new CellSummaryCreation());
-
-            //Run Outlier Detection on the data stream and return the outliers
-            DataStream<Hypercube> outliers =
-                    dataWithCellSummaries
-                            .windowAll(SlidingProcessingTimeWindows.of(Time.milliseconds(windowSize), Time.milliseconds(slideSize)))
-                            .allowedLateness(Time.milliseconds(500))
-                            .process(new OutlierDetection())
-                            .setParallelism(1);
-
-            //Write outliers to file
-            outliers
-                    .writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE)
-                    .setParallelism(1);
-        }
 
 
 
@@ -155,6 +135,7 @@ public class StreamingJob {
         HypercubeGeneration.hypercubeSide = hypSide;
         HypercubeGeneration.partitions = partition;
         CellSummaryCreation.windowSize = wSize;
+        OutlierDetection.windowSize = wSize;
         OutlierDetection.slideSize = sSize;
         OutlierDetection.minPts = k;
         OutlierDetection.dimensions = dim;
@@ -174,42 +155,3 @@ public class StreamingJob {
     }
 
 }
-
-
-
-//                .assignTimestampsAndWatermarks(WatermarkStrategy.<HypercubePoint>forMonotonousTimestamps()
-//                                                                .withTimestampAssigner((HypercubePoint, timestamp) -> HypercubePoint.getArrival()));
-
-//        cellSummaries
-//                .print()
-//                .setParallelism(1);
-
-//        //Partition the data by partitionID
-//        DataStream<Tuple2<Double, Integer>> cellSummaries =
-//                dataWithHypercubeID
-//                        .keyBy(HypercubePoint::getKey)
-//                        .process(new CellSummaryCreation());
-
-
-//Set parameter values for HypercubeGeneration to calculate the desired atomic hypercube's side length
-//        HypercubeGeneration.dimensions = dimensions;
-//                HypercubeGeneration.hypercubeSide = hypercubeSide;
-//                HypercubeGeneration.partitions = partitions;
-////        CellSummaryCreation.windowSize = windowSize;
-//                CellSummaryCreationSixth.windowSize = windowSize;
-////        OutlierDetectionTheFourth.slideSize = slideSize;
-////        OutlierDetectionTheFourth.minPts = minPts;
-////        OutlierDetectionTheFourth.dimensions = dimensions;
-////        OutlierDetectionTheFourth.radius = radius;
-////        OutlierDetectionTheFifth.slideSize = slideSize;
-////        OutlierDetectionTheFifth.minPts = minPts;
-////        OutlierDetectionTheFifth.dimensions = dimensions;
-////        OutlierDetectionTheFifth.radius = radius;
-////        OutlierDetectionTheFifth.hypercubeSide = hypercubeSide;
-////        OutlierDetectionTheFifth.dimWithHighRange = dimWithLargeestRangeOfValues;
-//                OutlierDetectionTheSixth.slideSize = slideSize;
-//                OutlierDetectionTheSixth.minPts = minPts;
-//                OutlierDetectionTheSixth.dimensions = dimensions;
-//                OutlierDetectionTheSixth.radius = radius;
-//                OutlierDetectionTheSixth.hypercubeSide = hypercubeSide;
-//                OutlierDetectionTheSixth.dimWithHighRange = dimWithLargeestRangeOfValues;

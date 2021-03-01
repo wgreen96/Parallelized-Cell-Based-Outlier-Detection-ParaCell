@@ -4,6 +4,7 @@ import akka.remote.WireFormats;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 
 public class Hypercube implements Serializable {
@@ -57,7 +58,6 @@ public class Hypercube implements Serializable {
     }
 
     public long getArrival() {
-//        System.out.println(this.arrival);
         return arrival;
     }
 
@@ -102,19 +102,11 @@ public class Hypercube implements Serializable {
     }
 
     public String coordsToString(){
-        String coordString = "";
-        for(double coorVals : this.coords){
-            coordString += Double.toString(coorVals) + ",";
-        }
-        return coordString;
+        return Arrays.toString(this.coords);
     }
 
     public String meansToString(){
-        String coordString = "";
-        for(double coorVals : this.centerOfCellCoords){
-            coordString += Double.toString(coorVals) + ", ";
-        }
-        return coordString;
+        return this.centerOfCellCoords.toString();
     }
 
 //    public String toString() {

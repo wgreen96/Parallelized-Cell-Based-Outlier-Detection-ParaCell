@@ -102,7 +102,6 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         ArrayList<Double> centerCoordsWithCount = currPoint.getCenterOfCellCoords();
         centerCoordsWithCount.add(currState.f0.doubleValue());
 
-        //System.out.println("Current ID: " + currHypID + ", Current Time: " + currState.f1);
 
         //Return state with HypercubeID, count to be processed by OutlierDetection function
         Hypercube newPoint = new Hypercube(currPoint.coords, currState.f1, currPoint.hypercubeID,
@@ -113,7 +112,6 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
         collector.collect(newPoint);
 
         //Every 10000 cycles, go through the entire state and make sure every hypercube prunes any old data points
-        //== 10000 should do the trick, but I'm gonna use mod just in case that somehow breaks and it needs another chance
         if(iterationCounter % 10000 == 0){
             for(String keys : HypercubeIDs.get()){
                 boolean prune = true;
@@ -144,29 +142,3 @@ public class CellSummaryCreation extends KeyedProcessFunction<Integer, Hypercube
 
     }
 }
-
-//        pruneCounter++;
-//        int keyCounter = 0;
-//        int prunedVals = 0;
-//        long thisCurrentTime = System.currentTimeMillis();
-//        //Every 10000 data ponits, go through the state and see if any Hypercubes should be pruned
-//        if(pruneCounter % 10000 == 1){
-//            for(String keys : hypercubeState.keys()){
-//                keyCounter++;
-//                LinkedList thisHypercubeQueue = timeState.get(keys);
-//                if(thisHypercubeQueue.peek() != null && (thisCurrentTime - (long) thisHypercubeQueue.peek()) > windowSize){
-//                    thisHypercubeQueue.remove();
-//                    Tuple2<Integer, Long> currState2 = hypercubeState.get(keys);
-//                    currState2.f0 = currState2.f0 - 1;
-//                    if(currState2.f0 == 0){
-//                        hypercubeState.remove(keys);
-//                        timeState.remove(keys);
-//                        prunedVals++;
-//                    }else{
-//                        hypercubeState.put(keys, currState2);
-//                    }
-//                }
-//            }
-//            System.out.println("Number hypercubes checked: " + keyCounter);
-//            System.out.println("Number hypercubes pruned: " + prunedVals);
-//        }

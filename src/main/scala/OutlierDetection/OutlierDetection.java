@@ -23,6 +23,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
     //State to store center coordinate for each hypercube
     ArrayList<ArrayList<Double>> setOfCenterCoords = new ArrayList<>();
 
+    static long windowSize;
     static long slideSize;
     static int minPts;
     static int dimensions;
@@ -30,10 +31,6 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
     static double hypercubeSide;
     static int dimWithHighRange;
     static int queryType;
-    int truePositive = 0;
-    int falsePositive = 0;
-    int trueNegative = 0;
-    int falseNegative = 0;
     int numberIterations = 0;
     long cpuTime = 0L;
 
@@ -46,25 +43,22 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
         long windowEndTime = context.window().getEnd();
         long windowStartTime = context.window().getStart();
         long time_init = System.currentTimeMillis();
-        int windowSize = 0;
+        int numDataInWindow = 0;
 
         ArrayList<double[]> paraCellOutliers = new ArrayList<>();
-        ArrayList<double[]> nestedLoopOutliers = new ArrayList<>();
         ArrayList<double[]> notOutliers = new ArrayList<>();
-//        ArrayList<double[]> notOutliers1 = new ArrayList<>();
-//        ArrayList<double[]> notOutliers2 = new ArrayList<>();
 
 
         //Start off by iterating through the current window
         for(Hypercube currPoints: windowPoints){
 
-            windowSize++;
+            numDataInWindow++;
             String currHypID = currPoints.hypercubeID;
             long currTime = currPoints.arrival;
             int currHypCount = currPoints.hypercubeCount;
             int currPartitionID = currPoints.partitionID;
 
-            //TODO Make this cleaner
+            //If partitionID == -1, it is only an updated hypercube summary rather than a data point + updated summary
             if(currPartitionID == -1){
                 //Check if the state is new
                 if(hypercubeState.containsKey(currHypID)){
@@ -72,6 +66,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                     if(currTime > lastModification.get(currHypID) || currTime <= (windowStartTime+slideSize)){
                         hypercubeState.put(currHypID, currHypCount);
                         lastModification.put(currHypID, currTime);
+                        //Get index of HypercubeID in setOfCenterCoords to update the right value
                         int indexToReplace = cellIndices.get(currHypID);
                         //Set val at the end instead of adding currPoints.centerOfCellCoords because this kind of data point doesnt have centerOfCellCoords
                         ArrayList<Double> valToUpdate = setOfCenterCoords.get(indexToReplace);
@@ -81,7 +76,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                     }
                 }
             }else{
-                windowSize++;
+                numDataInWindow++;
                 //Check if the state is new
                 if(!hypercubeState.containsKey(currHypID)){
                     //If new, create entry for HypercubeState, lastModified, and setOfCenterCoords
@@ -174,6 +169,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                 ArrayList<Double> dimVals = new ArrayList<>();
 
                 //Check if the sortedArrayIndex contains that key value. If so grab the value(starting index of value) associated with that key value
+                //The sortedArrayIndex will not contain one of the keys in the event that the value of interest is either the first or last in that dimension
                 if(sortedArrayIndex.containsKey(meanCoords.get(dimWithHighRange - 1) - 1)){
                     dimVals.add(meanCoords.get(dimWithHighRange - 1) - 1);
                     valsIndex.add(sortedArrayIndex.get(meanCoords.get(dimWithHighRange - 1) - 1));
@@ -192,7 +188,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                 while(!stop){
                     //Iterate through current values in ArrayList. As values are winnowed because they run out of data points or a threshold is met, remove them and the size is decremented
                     int currentSize = valsIndex.size();
-                    //Increment through each value index with for loop. Removing elements in loop so it needs to decrement
+                    //Increment through each value index with for loop. Removing elements during the loop so it needs to decrement
                     for(int j = currentSize-1; j >= 0; j--){
                         int loopIndex = valsIndex.get(j) + searchIndex;
                         ArrayList<Double> currCell = setOfCenterCoords.get(loopIndex);
@@ -212,7 +208,6 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                                     if(level1Count >= minPts){
                                         potentialOutliers.remove(prunedData);
                                         notOutliers.add(prunedData.coords);
-                                        //notOutliers1.add(prunedData.coords);
                                         //Switch boolean to break while loop and immediately break for loop
                                         stop = true;
                                         break;
@@ -244,14 +239,13 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                 //Greater than minPts, known not to be an outlier
                 potentialOutliers.remove(prunedData);
                 notOutliers.add(prunedData.coords);
-                //notOutliers1.add(prunedData.coords);
             }
         }
 
-        //Generate LSH model using all neighbors of questionableData and then get an approximate result for each data point
+        //Generate LSH model and then get an approximate result for each data point
         if(potentialOutliers.size() > 0){
             //Pass query (current data point) and neighbors to LSH
-            double hashFunctions = Math.log(windowSize);
+            double hashFunctions = Math.log(numDataInWindow);
             int KValue;
             if(hashFunctions % 1 >= 0.5){
                 KValue = (int) Math.ceil(hashFunctions);
@@ -263,6 +257,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
             }
             MPLSH LSH = new MPLSH(dimensions, 1, KValue, radius*4);
             for(Hypercube currPoints: windowPoints){
+                //If partitionID == -1, it is only an updated hypercube summary rather than a data point + updated summary
                 if(currPoints.partitionID != -1){
                     LSH.put(currPoints.coords, currPoints.coords);
                 }
@@ -275,69 +270,20 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
                     paraCellOutliers.add(hypercubePoint.coords);
                 }else{
                     notOutliers.add(hypercubePoint.coords);
-                    //notOutliers2.add(hypercubePoint.coords);
                 }
             }
         }
 
-//        //Loop to compare outliers from both programs to compute true/false positive
-//        nestedLoopOutliers = compareAccuracyWithNestedLoop(windowPoints);
-//        for(double[] outlier : paraCellOutliers){
-//            if(nestedLoopOutliers.contains(outlier)){
-//                truePositive++;
-//            }else{
-//                falsePositive++;
-//            }
-//        }
-//
-//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
-//        for(double[] normalData : notOutliers){
-//            if(nestedLoopOutliers.contains(normalData)){
-//                falseNegative++;
-//            }else{
-//                trueNegative++;
-//            }
-//        }
 
-//        int false1 = 0;
-//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
-//        for(double[] normalData : notOutliers1){
-//            if(nestedLoopOutliers.contains(normalData)){
-//                falseNegative++;
-//                false1++;
-//            }else{
-//                trueNegative++;
-//            }
-//        }
-//
-//        int false2 = 0;
-//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
-//        for(double[] normalData : notOutliers2){
-//            if(nestedLoopOutliers.contains(normalData)){
-//                falseNegative++;
-//                false1++;
-//            }else{
-//                trueNegative++;
-//            }
-//        }
-
-//        System.out.println(false1);
-//        System.out.println(false2);
 
         long time_final = System.currentTimeMillis();
         cpuTime += time_final - time_init;
         numberIterations++;
-        System.out.println("Total time: " + (time_final - time_init));
-        System.out.println("Average time: " + (cpuTime / numberIterations));
-        System.out.println("Iteration: " + numberIterations);
-        //System.out.println("Window size:" + windowSize);
-        //Query type 2 is the only one to check the entire set of data points in each window like the nested loop function created below
-        if(queryType == 2){
-//            System.out.println("True Positive: " + truePositive);
-//            System.out.println("False Positive: " + falsePositive);
-//            System.out.println("True Negative: " + trueNegative);
-//            System.out.println("False Negative: " + falseNegative);
-        }
+//        System.out.println("Total time: " + (time_final - time_init));
+//        System.out.println("Average time: " + (cpuTime / numberIterations));
+//        System.out.println("Iteration: " + numberIterations);
+        System.out.println("Window size:" + numDataInWindow);
+
 
 
         //Clean up states to ensure the program does not get bogged down by traversing information like HypercubeStates that do not have any data points in the current window
@@ -390,6 +336,7 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
     private ArrayList<double[]> compareAccuracyWithNestedLoop(Iterable<Hypercube> windowPoints) {
 
         ArrayList<double[]> allOutliers = new ArrayList<>();
+        //If partitionID == -1, it is only an updated hypercube summary rather than a data point + updated summary
         for (Hypercube currPoint : windowPoints) {
             if(currPoint.partitionID != -1){
                 double[] outliers = currPoint.coords;
@@ -418,23 +365,60 @@ public class OutlierDetection extends ProcessAllWindowFunction<Hypercube, Hyperc
 
 }
 
+//        int truePositive = 0;
+//        int falsePositive = 0;
+//        int trueNegative = 0;
+//        int falseNegative = 0;
+//        ArrayList<double[]> nestedLoopOutliers = new ArrayList<>();
+//        ArrayList<double[]> notOutliers1 = new ArrayList<>();
+//        ArrayList<double[]> notOutliers2 = new ArrayList<>();
 
-//            System.out.println("Average Accuracy: " + avgAccuracy);
-//            System.out.println("Overall Correct: " + ((double)totalCorrect/(double)totalOverall)*100);
-//FileWriter temp = new FileWriter("/home/green/Documents/OutputTimes.txt", true);
-//            BufferedWriter writer = new BufferedWriter(temp);
-//            writer.write("Total time: " + (time_final - time_init) + "\n");
-//            writer.write("Average time: " + (cpuTime / numberIterations) + "\n");
-//            writer.write("Outliers: " + totalOutliers + "\n");
-//            writer.close();
-//            temp.close();
+//        //Loop to compare outliers from both programs to compute true/false positive
+//        nestedLoopOutliers = compareAccuracyWithNestedLoop(windowPoints);
+//        for(double[] outlier : paraCellOutliers){
+//            if(nestedLoopOutliers.contains(outlier)){
+//                truePositive++;
+//            }else{
+//                falsePositive++;
+//            }
+//        }
+//
+//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
+//        for(double[] normalData : notOutliers){
+//            if(nestedLoopOutliers.contains(normalData)){
+//                falseNegative++;
+//            }else{
+//                trueNegative++;
+//            }
+//        }
+//        int false1 = 0;
+//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
+//        for(double[] normalData : notOutliers1){
+//            if(nestedLoopOutliers.contains(normalData)){
+//                falseNegative++;
+//                false1++;
+//            }else{
+//                trueNegative++;
+//            }
+//        }
+//
+//        int false2 = 0;
+//        //Loop to compare non-outliers from ParaCell to Nested Loop to compute true/false negatives
+//        for(double[] normalData : notOutliers2){
+//            if(nestedLoopOutliers.contains(normalData)){
+//                falseNegative++;
+//                false1++;
+//            }else{
+//                trueNegative++;
+//            }
+//        }
+//        System.out.println(false1);
+//        System.out.println(false2);
 
-
-//            FileWriter temp = new FileWriter("/home/green/Documents/OutputConfusionMatrix.txt", true);
-//            BufferedWriter writer = new BufferedWriter(temp);
-//            writer.write("True Positive: " + truePositive + "\n");
-//            writer.write("False Positive: " + falsePositive + "\n");
-//            writer.write("True Negative: " + trueNegative + "\n");
-//            writer.write("False Negative: " + falseNegative + "\n");
-//            writer.close();
-//            temp.close();
+//Query type 2 is the only one to check the entire set of data points in each window like the nested loop function created below
+//        if(queryType == 2){
+//            System.out.println("True Positive: " + truePositive);
+//            System.out.println("False Positive: " + falsePositive);
+//            System.out.println("True Negative: " + trueNegative);
+//            System.out.println("False Negative: " + falseNegative);
+//        }
